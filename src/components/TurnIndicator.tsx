@@ -1,10 +1,8 @@
-import type { PlayerID } from 'boardgame.io';
-
 import { getSectLabel, getTeamLabel } from '../game/helpers';
 import { TurnStage, type PlayerData } from '../types';
 
 type TurnIndicatorProps = {
-  currentPlayerId: PlayerID;
+  currentPlayerId: string;
   players: PlayerData[];
   stage: TurnStage;
   totalTiles: number;

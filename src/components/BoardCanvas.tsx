@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import type { PlayerID } from 'boardgame.io';
 
 import {
   BOARD_CANVAS_HEIGHT,
@@ -12,7 +11,7 @@ import { PlayerTeam, type PlayerData, type TileData } from '../types';
 type BoardCanvasProps = {
   tiles: TileData[];
   players: PlayerData[];
-  currentPlayerId: PlayerID;
+  currentPlayerId: string;
 };
 
 const WIDTH = BOARD_CANVAS_WIDTH;

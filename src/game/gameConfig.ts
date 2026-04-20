@@ -59,7 +59,7 @@ function setDiscardStage(events: EventsAPI, playerId: PlayerID): void {
   });
 }
 
-function resolveBotPendingDiscards(G: GameState, ctx: Ctx, events: EventsAPI): boolean {
+export function resolveBotPendingDiscards(G: GameState, ctx: Ctx, events: EventsAPI): boolean {
   while (true) {
     const pendingDiscard = getPendingDiscard(G);
     if (!pendingDiscard || !G.players[pendingDiscard.playerId].isBot) {
@@ -101,7 +101,7 @@ function resolveBotPendingDiscards(G: GameState, ctx: Ctx, events: EventsAPI): b
   return false;
 }
 
-function syncActivePlayers(G: GameState, ctx: Ctx, events: EventsAPI): boolean {
+export function syncActivePlayers(G: GameState, ctx: Ctx, events: EventsAPI): boolean {
   if (resolveBotPendingDiscards(G, ctx, events)) {
     return true;
   }
@@ -595,7 +595,7 @@ function createInternalMoveContext(G: GameState, ctx: Ctx, events: EventsAPI): M
   } as MoveContext;
 }
 
-function runBotTurn(G: GameState, ctx: Ctx, events: EventsAPI): void {
+export function runBotTurn(G: GameState, ctx: Ctx, events: EventsAPI): void {
   const botPlayerId = ctx.currentPlayer;
 
   for (let safety = 0; safety < 48; safety += 1) {
