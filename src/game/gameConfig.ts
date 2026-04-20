@@ -260,6 +260,14 @@ function ensureStage(G: GameState, stage: TurnStage): boolean {
   return G.turnStage === stage;
 }
 
+function canUseActiveSkillInCurrentStage(G: GameState): boolean {
+  return G.turnStage === TurnStage.ROLL || G.turnStage === TurnStage.CARD || G.turnStage === TurnStage.SKILL;
+}
+
+function canUseCardsInCurrentStage(G: GameState): boolean {
+  return G.turnStage === TurnStage.ROLL || G.turnStage === TurnStage.CARD;
+}
+
 const rollDice = ({ G, ctx, events }: MoveContext) => {
   if (getPendingDiscard(G)) {
     return;
@@ -284,8 +292,22 @@ const rollDice = ({ G, ctx, events }: MoveContext) => {
   player.lastRoll = finalRoll;
   player.hasRolledThisTurn = true;
   G.pendingRoll = finalRoll;
-  G.turnStage = TurnStage.MOVE;
   appendLog(G, `${player.name} 掷出了 ${baseRoll} 点，当前可移动 ${finalRoll} 格。`);
+  resolveMovement(G, events, ctx.currentPlayer, finalRoll, '掷骰', TurnStage.CARD);
+  player.hasMovedThisTurn = true;
+  G.pendingRoll = null;
+
+  if (G.winnerTeam !== null) {
+    return;
+  }
+
+  if (G.pendingShop) {
+    G.turnStage = TurnStage.SHOP;
+    syncActivePlayers(G, ctx, events);
+    return;
+  }
+
+  G.turnStage = TurnStage.CARD;
   syncActivePlayers(G, ctx, events);
 };
 
@@ -405,11 +427,12 @@ const useCard = (
     return;
   }
 
-  if (!ensureStage(G, TurnStage.CARD)) {
+  if (!canUseCardsInCurrentStage(G)) {
     return;
   }
 
   const player = G.players[ctx.currentPlayer];
+  const currentStage = G.turnStage;
   const card = player.handCards.find((item) => item.id === cardId);
   if (!card || card.isPassive) {
     return;
@@ -425,6 +448,10 @@ const useCard = (
 
   if (G.pendingShop) {
     G.turnStage = TurnStage.SHOP;
+  } else if (currentStage === TurnStage.ROLL) {
+    G.turnStage = TurnStage.ROLL;
+  } else {
+    G.turnStage = TurnStage.CARD;
   }
 
   syncActivePlayers(G, ctx, events);
@@ -439,6 +466,12 @@ const finishCardStage = ({ G, ctx, events }: MoveContext) => {
     return;
   }
 
+  const player = G.players[ctx.currentPlayer];
+  if (player.hasUsedSkillThisTurn || player.activeSkillCooldown > 0) {
+    events?.endTurn?.();
+    return;
+  }
+
   G.turnStage = TurnStage.SKILL;
   syncActivePlayers(G, ctx, events);
 };
@@ -448,7 +481,7 @@ const useActiveSkill = ({ G, ctx, events }: MoveContext, targetPlayerId?: Player
     return;
   }
 
-  if (!ensureStage(G, TurnStage.SKILL)) {
+  if (!canUseActiveSkillInCurrentStage(G)) {
     return;
   }
 
@@ -464,9 +497,30 @@ const useActiveSkill = ({ G, ctx, events }: MoveContext, targetPlayerId?: Player
 
   player.activeSkillCooldown = getActiveSkillCooldownTurns(player.sect);
   player.hasUsedSkillThisTurn = true;
-  resolvePendingMovementIfNeeded(G, events, ctx.currentPlayer, '主动技能', TurnStage.SKILL);
+  const currentStage = G.turnStage;
+  resolvePendingMovementIfNeeded(G, events, ctx.currentPlayer, '主动技能', currentStage);
 
   if (G.winnerTeam !== null) {
+    return;
+  }
+
+  if (currentStage === TurnStage.ROLL) {
+    if (G.pendingShop) {
+      G.turnStage = TurnStage.SHOP;
+    } else {
+      G.turnStage = TurnStage.ROLL;
+    }
+    syncActivePlayers(G, ctx, events);
+    return;
+  }
+
+  if (currentStage === TurnStage.CARD) {
+    if (G.pendingShop) {
+      G.turnStage = TurnStage.SHOP;
+    } else {
+      G.turnStage = TurnStage.CARD;
+    }
+    syncActivePlayers(G, ctx, events);
     return;
   }
 
@@ -564,6 +618,15 @@ function runBotTurn(G: GameState, ctx: Ctx, events: EventsAPI): void {
     const moveContext = createInternalMoveContext(G, ctx, events);
 
     if (G.turnStage === TurnStage.ROLL) {
+      const skillPlay = chooseAiSkillPlay(G, botPlayerId);
+      if (skillPlay) {
+        useActiveSkill(moveContext, skillPlay.targetPlayerId);
+        if (G.winnerTeam !== null || ctx.currentPlayer !== botPlayerId) {
+          return;
+        }
+        continue;
+      }
+
       rollDice(moveContext);
       continue;
     }
@@ -656,7 +719,9 @@ export const DamaqiGame: Game<GameState, Record<string, never>, SetupData> = {
     stages: {
       [TurnStage.ROLL]: {
         moves: {
-          rollDice
+          rollDice,
+          useCard,
+          useActiveSkill
         }
       },
       [TurnStage.MOVE]: {
@@ -673,7 +738,8 @@ export const DamaqiGame: Game<GameState, Record<string, never>, SetupData> = {
       [TurnStage.CARD]: {
         moves: {
           useCard,
-          finishCardStage
+          finishCardStage,
+          useActiveSkill
         }
       },
       [TurnStage.SKILL]: {

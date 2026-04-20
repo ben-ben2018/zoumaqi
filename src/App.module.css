@@ -1,6 +1,7 @@
 .shell {
-  min-height: 100vh;
-  padding: clamp(20px, 4vw, 48px);
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
   background:
     radial-gradient(circle at top left, rgba(186, 165, 117, 0.24), transparent 34%),
     radial-gradient(circle at bottom right, rgba(88, 117, 120, 0.2), transparent 28%),
@@ -8,46 +9,23 @@
 }
 
 .hero {
-  display: grid;
-  gap: 20px;
-  grid-template-columns: minmax(0, 1.3fr) minmax(260px, 0.7fr);
-  align-items: end;
-  margin: 0 auto 24px;
-  max-width: 1400px;
-}
-
-.kicker {
-  margin: 0 0 10px;
-  color: #6c4f3f;
-  font-size: 0.78rem;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-}
-
-.title {
-  margin: 0;
-  color: #2f2619;
-  font-family: 'STKaiti', 'KaiTi', serif;
-  font-size: clamp(2.4rem, 5vw, 4.8rem);
-  font-weight: 700;
-  line-height: 1.05;
-}
-
-.summary {
-  margin: 16px 0 0;
-  max-width: 58ch;
-  color: #4a4234;
-  font-size: 1rem;
-  line-height: 1.8;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 40;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: auto;
 }
 
 .seatBox {
   position: relative;
-  padding: 18px 20px;
+  padding: 14px 16px;
   border: 1px solid rgba(89, 69, 42, 0.16);
-  border-radius: 24px;
-  background: linear-gradient(180deg, rgba(255, 251, 241, 0.9), rgba(238, 229, 211, 0.82));
-  box-shadow: 0 18px 50px rgba(80, 58, 24, 0.1);
+  border-radius: 22px;
+  background: rgba(255, 251, 241, 0.82);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 16px 40px rgba(80, 58, 24, 0.1);
 }
 
 .seatBox::before {
@@ -61,9 +39,9 @@
 
 .seatLabel {
   display: block;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   color: #624a35;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   letter-spacing: 0.12em;
 }
 
@@ -75,12 +53,12 @@
 
 .seatButton,
 .seatButtonActive {
-  min-width: 72px;
-  padding: 10px 16px;
+  min-width: 60px;
+  padding: 8px 14px;
   border: 1px solid rgba(74, 57, 34, 0.14);
   border-radius: 999px;
   color: #403122;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   transition: transform 180ms ease, background-color 180ms ease, color 180ms ease;
 }
 
@@ -100,18 +78,19 @@
 }
 
 .seatHint {
-  margin: 12px 0 0;
+  margin: 10px 0 0;
   color: #625645;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .clientFrame {
-  margin: 0 auto;
-  max-width: 1400px;
+  position: relative;
+  height: 100%;
 }
 
 @media (max-width: 960px) {
   .hero {
-    grid-template-columns: 1fr;
+    top: 12px;
+    right: 12px;
   }
 }

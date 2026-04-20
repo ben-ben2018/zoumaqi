@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import type { PlayerID } from 'boardgame.io';
 import type { BoardProps } from 'boardgame.io/react';
@@ -11,7 +11,7 @@ import { PlayerPanel } from './PlayerPanel';
 import { ShopModal } from './ShopModal';
 import { TurnIndicator } from './TurnIndicator';
 import { getHandLimit, getSectLabel, getTeamLabel } from '../game/helpers';
-import { SkillTarget, TurnStage, type CardData, type CardUsageArgs, type GameState, type PlayerData } from '../types';
+import { Sect, SkillTarget, TurnStage, type CardData, type CardUsageArgs, type GameState, type PlayerData } from '../types';
 
 type BoardMoveAPI = {
   rollDice: () => void;
@@ -33,19 +33,50 @@ type PendingCardAction = {
   cardId: string;
   targetPlayerId?: PlayerID;
 } | null;
+type PendingTargetAction =
+  | {
+      source: 'card' | 'skill';
+      cardId?: string;
+      title: string;
+      description: string;
+      candidateIds: PlayerID[];
+    }
+  | null;
 
-function getDefaultTarget(
-  cards: CardData[],
-  currentPlayerId: PlayerID,
-  players: Record<PlayerID, PlayerData>
-): PlayerID | '' {
-  const enemy = Object.values(players).find((candidate) => candidate.id !== currentPlayerId && candidate.team !== players[currentPlayerId].team);
-  if (cards.some((card) => card.targetType === SkillTarget.ENEMY)) {
-    return enemy?.id ?? '';
+const TEAMMATE_ONLY_CARD_IDS = new Set(['youqian_renxing', 'paiyou_jienan']);
+const ENEMY_TARGET_SKILL_SECTS = new Set([Sect.LIYUAN, Sect.SANGENGTIAN, Sect.ZUIHUAYIN, Sect.JIULIUMEN]);
+
+function getCardTargetCandidateIds(card: CardData, currentPlayerId: PlayerID, players: Record<PlayerID, PlayerData>): PlayerID[] {
+  const currentPlayer = players[currentPlayerId];
+
+  if (card.targetType === SkillTarget.ENEMY) {
+    return Object.values(players)
+      .filter((candidate) => candidate.team !== currentPlayer.team)
+      .map((candidate) => candidate.id as PlayerID);
   }
 
-  const ally = Object.values(players).find((candidate) => candidate.id !== currentPlayerId && candidate.team === players[currentPlayerId].team);
-  return ally?.id ?? '';
+  if (card.targetType === SkillTarget.ALLY) {
+    return Object.values(players)
+      .filter((candidate) =>
+        TEAMMATE_ONLY_CARD_IDS.has(card.id)
+          ? candidate.id !== currentPlayerId && candidate.team === currentPlayer.team
+          : candidate.team === currentPlayer.team
+      )
+      .map((candidate) => candidate.id as PlayerID);
+  }
+
+  return [];
+}
+
+function getSkillTargetCandidateIds(currentPlayerId: PlayerID, players: Record<PlayerID, PlayerData>): PlayerID[] {
+  const currentPlayer = players[currentPlayerId];
+  if (!ENEMY_TARGET_SKILL_SECTS.has(currentPlayer.sect)) {
+    return [];
+  }
+
+  return Object.values(players)
+    .filter((candidate) => candidate.team !== currentPlayer.team)
+    .map((candidate) => candidate.id as PlayerID);
 }
 
 export function DamaqiBoard({ G, ctx, moves, humanPlayerID, viewPlayerID }: DamaqiBoardProps) {
@@ -54,15 +85,8 @@ export function DamaqiBoard({ G, ctx, moves, humanPlayerID, viewPlayerID }: Dama
   const effectivePlayerId = (viewPlayerID ?? actualHumanPlayerId) as PlayerID;
   const currentPlayer = G.players[ctx.currentPlayer];
   const myPlayer = G.players[effectivePlayerId];
-  const [selectedTargetId, setSelectedTargetId] = useState<PlayerID | ''>(() =>
-    getDefaultTarget(myPlayer.handCards, effectivePlayerId, G.players)
-  );
   const [pendingCardAction, setPendingCardAction] = useState<PendingCardAction>(null);
-
-  const otherPlayers = useMemo(
-    () => Object.values(G.players).filter((player) => player.id !== effectivePlayerId),
-    [G.players, effectivePlayerId]
-  );
+  const [pendingTargetAction, setPendingTargetAction] = useState<PendingTargetAction>(null);
 
   const activePendingDiscard = G.pendingDiscards[0] ?? null;
   const pendingDiscardPlayer = activePendingDiscard ? G.players[activePendingDiscard.playerId] : null;
@@ -71,13 +95,12 @@ export function DamaqiBoard({ G, ctx, moves, humanPlayerID, viewPlayerID }: Dama
     : 0;
   const isForcedDiscardActive = Boolean(activePendingDiscard);
   const isMyPendingDiscard = activePendingDiscard?.playerId === effectivePlayerId;
-  const selectedTarget = selectedTargetId ? G.players[selectedTargetId] : null;
   const isHumanTurn = actualHumanPlayerId === ctx.currentPlayer;
   const isViewingHumanSeat = effectivePlayerId === actualHumanPlayerId;
   const areActionButtonsDisabled = !isHumanTurn || !isViewingHumanSeat || isForcedDiscardActive;
 
   useEffect(() => {
-    if (G.turnStage !== TurnStage.CARD || !isHumanTurn || !isViewingHumanSeat) {
+    if (![TurnStage.ROLL, TurnStage.CARD].includes(G.turnStage) || !isHumanTurn || !isViewingHumanSeat) {
       setPendingCardAction(null);
     }
   }, [G.turnStage, isHumanTurn, isViewingHumanSeat, ctx.currentPlayer]);
@@ -85,19 +108,42 @@ export function DamaqiBoard({ G, ctx, moves, humanPlayerID, viewPlayerID }: Dama
   useEffect(() => {
     if (isForcedDiscardActive) {
       setPendingCardAction(null);
+      setPendingTargetAction(null);
     }
   }, [isForcedDiscardActive]);
 
-  const handleUseCard = (cardId: string, targetPlayerId?: PlayerID) => {
+  useEffect(() => {
+    if (!isHumanTurn || !isViewingHumanSeat) {
+      setPendingTargetAction(null);
+    }
+  }, [isHumanTurn, isViewingHumanSeat, ctx.currentPlayer]);
+
+  const handleUseCard = (cardId: string) => {
+    const card = myPlayer.handCards.find((item) => item.id === cardId);
+    if (!card) {
+      return;
+    }
+
     if (cardId === 'lingyun_ta') {
       setPendingCardAction({
-        cardId,
-        targetPlayerId
+        cardId
       });
       return;
     }
 
-    moveApi.useCard(cardId, targetPlayerId);
+    const candidateIds = getCardTargetCandidateIds(card, effectivePlayerId, G.players);
+    if (candidateIds.length > 0) {
+      setPendingTargetAction({
+        source: 'card',
+        cardId,
+        title: `选择 ${card.name} 的目标`,
+        description: card.targetType === SkillTarget.ENEMY ? '此效果只能对敌方生效。' : '此效果可对自己或友方生效。',
+        candidateIds
+      });
+      return;
+    }
+
+    moveApi.useCard(cardId);
   };
 
   const handleLingyunChoice = (selectedSteps: number) => {
@@ -111,28 +157,53 @@ export function DamaqiBoard({ G, ctx, moves, humanPlayerID, viewPlayerID }: Dama
     setPendingCardAction(null);
   };
 
+  const handleUseActiveSkill = () => {
+    const candidateIds = getSkillTargetCandidateIds(effectivePlayerId, G.players);
+    if (candidateIds.length > 0) {
+      setPendingTargetAction({
+        source: 'skill',
+        title: `选择${getSectLabel(myPlayer.sect)}主动目标`,
+        description: '该主动技能只能对敌方目标生效。',
+        candidateIds
+      });
+      return;
+    }
+
+    moveApi.useActiveSkill();
+  };
+
+  const handleTargetChoice = (targetPlayerId: PlayerID) => {
+    if (!pendingTargetAction) {
+      return;
+    }
+
+    if (pendingTargetAction.source === 'card' && pendingTargetAction.cardId) {
+      moveApi.useCard(pendingTargetAction.cardId, targetPlayerId);
+    } else {
+      moveApi.useActiveSkill(targetPlayerId);
+    }
+
+    setPendingTargetAction(null);
+  };
+
   return (
     <div className={styles.shell}>
-      <TurnIndicator currentPlayerId={ctx.currentPlayer} players={Object.values(G.players)} stage={G.turnStage} />
+      <section className={styles.boardSurface}>
+        <BoardCanvas tiles={G.board.tiles} players={Object.values(G.players)} currentPlayerId={ctx.currentPlayer} />
+      </section>
 
-      <div className={styles.grid}>
-        <section className={styles.boardBlock}>
-          <div className={styles.boardHeader}>
-            <div>
-              <p className={styles.sectionKicker}>长卷棋盘</p>
-              <h2 className={styles.sectionTitle}>当前回合：{currentPlayer.name}</h2>
-            </div>
+      <div className={styles.hudLayer}>
+        <div className={styles.turnDock}>
+          <TurnIndicator
+            currentPlayerId={ctx.currentPlayer}
+            players={Object.values(G.players)}
+            stage={G.turnStage}
+            totalTiles={G.board.totalTiles}
+          />
+        </div>
 
-            <div className={styles.turnBadge}>
-              <span>{getTeamLabel(currentPlayer.team)}</span>
-              <span>{getSectLabel(currentPlayer.sect)}</span>
-              <span>阶段：{G.turnStage}</span>
-            </div>
-          </div>
-
-          <BoardCanvas tiles={G.board.tiles} players={Object.values(G.players)} currentPlayerId={ctx.currentPlayer} />
-
-          <div className={styles.logPanel}>
+        <div className={styles.logPanel}>
+          <div className={styles.logPanelInner}>
             <p className={styles.sectionKicker}>棋局播报</p>
             <p className={styles.turnMessage}>{G.turnMessage}</p>
             <div className={styles.logList}>
@@ -143,7 +214,7 @@ export function DamaqiBoard({ G, ctx, moves, humanPlayerID, viewPlayerID }: Dama
               ))}
             </div>
           </div>
-        </section>
+        </div>
 
         <aside className={styles.sideColumn}>
           <div className={styles.noticeCard}>
@@ -159,27 +230,8 @@ export function DamaqiBoard({ G, ctx, moves, humanPlayerID, viewPlayerID }: Dama
                   : '当前是你的回合，但你正在观察其他座位。切回 1P 后即可操作。'
                 : `${currentPlayer.name} 正由 ${currentPlayer.isBot ? 'AI' : '人类'}处理本回合。`}
             </p>
-          </div>
-
-          <div className={styles.targetCard}>
-            <label className={styles.targetLabel} htmlFor="target-select">
-              目标选择
-            </label>
-            <select
-              id="target-select"
-              className={styles.targetSelect}
-              value={selectedTargetId}
-              onChange={(event) => setSelectedTargetId(event.target.value as PlayerID | '')}
-            >
-              <option value="">无需目标 / 默认目标</option>
-              {otherPlayers.map((player) => (
-                <option key={player.id} value={player.id}>
-                  {player.name} · {getSectLabel(player.sect)} · {getTeamLabel(player.team)}
-                </option>
-              ))}
-            </select>
-            <p className={styles.targetHint}>
-              当前目标：{selectedTarget ? `${selectedTarget.name}（${getSectLabel(selectedTarget.sect)}）` : '未指定'}
+            <p className={styles.noticeText}>
+              需要指定目标的卡牌或主动技能，会在点击时弹出目标选择，不再常驻占用面板区域。
             </p>
           </div>
 
@@ -189,7 +241,6 @@ export function DamaqiBoard({ G, ctx, moves, humanPlayerID, viewPlayerID }: Dama
             pendingRoll={G.pendingRoll}
             disabled={areActionButtonsDisabled}
             onRoll={moveApi.rollDice}
-            onMove={() => moveApi.movePlayer()}
           />
 
           <div className={styles.quickActions}>
@@ -211,8 +262,12 @@ export function DamaqiBoard({ G, ctx, moves, humanPlayerID, viewPlayerID }: Dama
             </button>
             <button
               className={styles.skillButton}
-              disabled={areActionButtonsDisabled || G.turnStage !== TurnStage.SKILL || myPlayer.activeSkillCooldown > 0}
-              onClick={() => moveApi.useActiveSkill(selectedTargetId || undefined)}
+              disabled={
+                areActionButtonsDisabled ||
+                ![TurnStage.ROLL, TurnStage.CARD, TurnStage.SKILL].includes(G.turnStage) ||
+                myPlayer.activeSkillCooldown > 0
+              }
+              onClick={handleUseActiveSkill}
               type="button"
             >
               {myPlayer.activeSkillCooldown > 0
@@ -221,37 +276,39 @@ export function DamaqiBoard({ G, ctx, moves, humanPlayerID, viewPlayerID }: Dama
             </button>
           </div>
         </aside>
-      </div>
 
-      <div className={styles.playerGrid}>
-        {Object.values(G.players).map((player) => (
-          <PlayerPanel
-            key={player.id}
-            player={player}
-            isCurrent={player.id === ctx.currentPlayer}
-            isSelf={player.id === effectivePlayerId}
-          />
-        ))}
-      </div>
-
-      <section className={styles.handBlock}>
-        <div className={styles.handHeader}>
-          <div>
-            <p className={styles.sectionKicker}>手牌区</p>
-            <h2 className={styles.sectionTitle}>当前座位：{myPlayer.name}</h2>
+        <div className={styles.playerDock}>
+          <div className={styles.playerGrid}>
+            {Object.values(G.players).map((player) => (
+              <PlayerPanel
+                key={player.id}
+                player={player}
+                isCurrent={player.id === ctx.currentPlayer}
+                isSelf={player.id === effectivePlayerId}
+                totalTiles={G.board.totalTiles}
+              />
+            ))}
           </div>
-          <p className={styles.handHint}>
-            被动卡会持续留在手牌中生效。攻击/辅助卡请先在右侧选择目标，再从这里打出。AI 座位会自动执行。
-          </p>
         </div>
 
-        <HandCards
-          cards={myPlayer.handCards}
-          disabled={areActionButtonsDisabled || G.turnStage !== TurnStage.CARD}
-          selectedTargetId={selectedTargetId || undefined}
-          onUseCard={handleUseCard}
-        />
-      </section>
+        <section className={styles.handBlock}>
+          <div className={styles.handHeader}>
+            <div>
+              <p className={styles.sectionKicker}>手牌区</p>
+              <h2 className={styles.sectionTitle}>当前座位：{myPlayer.name}</h2>
+            </div>
+            <p className={styles.handHint}>
+              被动卡会持续留在手牌中生效。需要指定目标的卡牌会在点击后弹出目标选择。AI 座位会自动执行。
+            </p>
+          </div>
+
+          <HandCards
+            cards={myPlayer.handCards}
+            disabled={areActionButtonsDisabled || ![TurnStage.ROLL, TurnStage.CARD].includes(G.turnStage)}
+            onUseCard={handleUseCard}
+          />
+        </section>
+      </div>
 
       {G.pendingShop && (
         <ShopModal
@@ -321,6 +378,43 @@ export function DamaqiBoard({ G, ctx, moves, humanPlayerID, viewPlayerID }: Dama
             </div>
 
             <button className={styles.cancelButton} onClick={() => setPendingCardAction(null)} type="button">
+              取消
+            </button>
+          </section>
+        </div>
+      )}
+
+      {pendingTargetAction && (
+        <div className={styles.overlay}>
+          <section className={styles.choiceModal}>
+            <p className={styles.sectionKicker}>目标选择</p>
+            <h3 className={styles.choiceTitle}>{pendingTargetAction.title}</h3>
+            <p className={styles.choiceText}>{pendingTargetAction.description}</p>
+
+            <div className={styles.discardList}>
+              {pendingTargetAction.candidateIds.map((candidateId) => {
+                const targetPlayer = G.players[candidateId];
+                return (
+                  <article key={targetPlayer.id} className={styles.discardCard}>
+                    <div>
+                      <p className={styles.discardType}>{getTeamLabel(targetPlayer.team)}</p>
+                      <h4 className={styles.discardName}>
+                        {targetPlayer.name} · {getSectLabel(targetPlayer.sect)}
+                      </h4>
+                      <p className={styles.discardDescription}>
+                        位置 {targetPlayer.position + 1} / {G.board.totalTiles} · 棋珍 {targetPlayer.gold} · 手牌{' '}
+                        {targetPlayer.handCards.length}
+                      </p>
+                    </div>
+                    <button className={styles.discardButton} onClick={() => handleTargetChoice(candidateId)} type="button">
+                      选择该目标
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+
+            <button className={styles.cancelButton} onClick={() => setPendingTargetAction(null)} type="button">
               取消
             </button>
           </section>

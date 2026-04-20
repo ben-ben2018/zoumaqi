@@ -22,14 +22,6 @@ export default function App() {
   return (
     <main className={styles.shell}>
       <section className={styles.hero}>
-        <div>
-          <p className={styles.kicker}>燕云十六声 · 打马棋</p>
-          <h1 className={styles.title}>水墨长卷中的 2v2 棋局对弈</h1>
-          <p className={styles.summary}>
-            当前实现支持 1P 对战 3 名人机。你固定操控 1P，2P-4P 会依据策略文档自动完成掷骰、移动、购牌、出牌、技能与弃牌。
-          </p>
-        </div>
-
         <div className={styles.seatBox}>
           <span className={styles.seatLabel}>观战座位</span>
           <div className={styles.seatList}>

@@ -7,9 +7,10 @@ type TurnIndicatorProps = {
   currentPlayerId: PlayerID;
   players: PlayerData[];
   stage: TurnStage;
+  totalTiles: number;
 };
 
-export function TurnIndicator({ currentPlayerId, players, stage }: TurnIndicatorProps) {
+export function TurnIndicator({ currentPlayerId, players, stage, totalTiles }: TurnIndicatorProps) {
   const currentPlayer = players.find((player) => player.id === currentPlayerId) ?? players[0];
   const redScore = Math.max(...players.filter((player) => player.team === 0).map((player) => player.position));
   const blueScore = Math.max(...players.filter((player) => player.team === 1).map((player) => player.position));
@@ -32,7 +33,7 @@ export function TurnIndicator({ currentPlayerId, players, stage }: TurnIndicator
 
       <div className="rounded-[18px] bg-[rgba(98,130,113,0.12)] px-4 py-3 text-sm text-ink-700">
         <div>胜利条件</div>
-        <div>任意队伍一名成员先到 50 格即胜</div>
+        <div>任意队伍一名成员先到 {totalTiles} 格即胜</div>
       </div>
     </section>
   );

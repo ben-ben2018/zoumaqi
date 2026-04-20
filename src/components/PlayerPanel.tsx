@@ -7,6 +7,7 @@ type PlayerPanelProps = {
   player: PlayerData;
   isCurrent: boolean;
   isSelf: boolean;
+  totalTiles: number;
 };
 
 function formatStatus(player: PlayerData): string {
@@ -19,61 +20,43 @@ function formatStatus(player: PlayerData): string {
   return '正常';
 }
 
-export function PlayerPanel({ player, isCurrent, isSelf }: PlayerPanelProps) {
+export function PlayerPanel({ player, isCurrent, isSelf, totalTiles }: PlayerPanelProps) {
+  const buffCount = Object.keys(player.buffs).length;
+  const debuffCount = Object.keys(player.debuffs).length;
+
   return (
     <article
       className={clsx(
-        'rounded-[22px] border px-4 py-4 shadow-paper transition-transform duration-200',
+        'rounded-[16px] border px-3 py-2 shadow-paper transition-transform duration-200',
         isCurrent
-          ? 'border-[rgba(111,78,57,0.35)] bg-[rgba(255,250,241,0.96)]'
-          : 'border-ink-700/10 bg-[rgba(255,249,238,0.82)]',
-        isSelf && 'translate-y-[-2px]'
+          ? 'border-[rgba(111,78,57,0.35)] bg-[rgba(255,250,241,0.94)]'
+          : 'border-ink-700/10 bg-[rgba(255,249,238,0.74)]',
+        isSelf && 'translate-y-[-1px]'
       )}
     >
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <p className="m-0 text-xs uppercase tracking-[0.18em] text-ink-500">{getTeamLabel(player.team)}</p>
-          <h3 className="m-0 font-display text-2xl text-ink-900">{player.name}</h3>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="m-0 text-[10px] uppercase tracking-[0.14em] text-ink-500">{getTeamLabel(player.team)}</p>
+          <h3 className="m-0 truncate font-display text-lg leading-none text-ink-900">{player.name}</h3>
         </div>
-        <div className="flex flex-wrap justify-end gap-2">
-          <span className="rounded-full bg-ink-100 px-3 py-1 text-xs text-ink-700">{getSectLabel(player.sect)}</span>
-          <span className="rounded-full bg-[rgba(111,78,57,0.1)] px-3 py-1 text-xs text-ink-700">
-            {player.isBot ? 'AI' : '玩家'}
+        <div className="flex flex-wrap justify-end gap-1">
+          <span className="rounded-full bg-ink-100 px-2 py-0.5 text-[10px] text-ink-700">{getSectLabel(player.sect)}</span>
+          <span className="rounded-full bg-[rgba(111,78,57,0.1)] px-2 py-0.5 text-[10px] text-ink-700">
+            {player.isBot ? 'AI' : '人'}
           </span>
         </div>
       </div>
 
-      <dl className="grid grid-cols-2 gap-3 text-sm text-ink-700">
-        <div>
-          <dt>位置</dt>
-          <dd className="m-0 text-lg text-ink-900">{player.position + 1} / 50</dd>
-        </div>
-        <div>
-          <dt>棋珍</dt>
-          <dd className="m-0 text-lg text-ink-900">{player.gold}</dd>
-        </div>
-        <div>
-          <dt>手牌</dt>
-          <dd className="m-0 text-lg text-ink-900">{player.handCards.length}</dd>
-        </div>
-        <div>
-          <dt>冷却</dt>
-          <dd className="m-0 text-lg text-ink-900">{player.activeSkillCooldown}</dd>
-        </div>
-      </dl>
-
-      <div className="mt-4 flex flex-wrap gap-2 text-xs">
-        <span className="rounded-full bg-ink-100 px-3 py-1 text-ink-700">状态：{formatStatus(player)}</span>
-        {Object.keys(player.buffs).map((buff) => (
-          <span key={buff} className="rounded-full bg-moss-100 px-3 py-1 text-moss-700">
-            Buff：{buff}
-          </span>
-        ))}
-        {Object.keys(player.debuffs).map((debuff) => (
-          <span key={debuff} className="rounded-full bg-[rgba(139,75,60,0.16)] px-3 py-1 text-[#704836]">
-            Debuff：{debuff}
-          </span>
-        ))}
+      <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] text-ink-700">
+        <span className="rounded-full bg-[rgba(111,78,57,0.08)] px-2 py-0.5">位 {player.position + 1}/{totalTiles}</span>
+        <span className="rounded-full bg-[rgba(111,78,57,0.08)] px-2 py-0.5">珍 {player.gold}</span>
+        <span className="rounded-full bg-[rgba(111,78,57,0.08)] px-2 py-0.5">牌 {player.handCards.length}</span>
+        <span className="rounded-full bg-[rgba(111,78,57,0.08)] px-2 py-0.5">冷 {player.activeSkillCooldown}</span>
+        <span className="rounded-full bg-ink-100 px-2 py-0.5 text-ink-700">{formatStatus(player)}</span>
+        {buffCount > 0 && <span className="rounded-full bg-moss-100 px-2 py-0.5 text-moss-700">Buff {buffCount}</span>}
+        {debuffCount > 0 && (
+          <span className="rounded-full bg-[rgba(139,75,60,0.16)] px-2 py-0.5 text-[#704836]">Debuff {debuffCount}</span>
+        )}
       </div>
     </article>
   );

@@ -4,15 +4,20 @@ import { MapEventType, type BoardData, type GameState, type TileData } from '../
 import { drawRandomCards } from '../cards/cardData';
 import { appendLog, grantCardsToPlayer, setTimedEffect, takeRandomCard } from '../helpers';
 
-export const TOTAL_TILES = 50;
-export const SHOP_TILE_INDICES = [3, 10, 20, 30, 40];
-export const MYSTERY_TILE_INDICES = [6, 13, 23, 33, 43];
-export const BOSS_TILE_INDICES = [15, 25, 35, 45];
+export const TOTAL_TILES = 100;
+export const SHOP_TILE_INDICES = [3, 10, 20, 30, 40, 50, 60, 70, 80, 90];
+export const MYSTERY_TILE_INDICES = [6, 13, 23, 33, 43, 53, 63, 73, 83, 93];
+export const BOSS_TILE_INDICES = [15, 25, 35, 45, 55, 65, 75, 85, 95];
 
-const BOARD_COLUMNS = 10;
-const TILE_GAP = 92;
-const OFFSET_X = 72;
-const OFFSET_Y = 64;
+export const BOARD_COLUMNS = 20;
+export const BOARD_ROWS = TOTAL_TILES / BOARD_COLUMNS;
+export const TILE_GAP = 34;
+export const TILE_SIZE = 18;
+export const CURRENT_TILE_SIZE = 22;
+export const OFFSET_X = 32;
+export const OFFSET_Y = 32;
+export const BOARD_CANVAS_WIDTH = OFFSET_X * 2 + (BOARD_COLUMNS - 1) * TILE_GAP + CURRENT_TILE_SIZE;
+export const BOARD_CANVAS_HEIGHT = OFFSET_Y * 2 + (BOARD_ROWS - 1) * TILE_GAP + CURRENT_TILE_SIZE;
 
 export function getTileCoordinates(index: number): { x: number; y: number } {
   const row = Math.floor(index / BOARD_COLUMNS);
@@ -21,7 +26,7 @@ export function getTileCoordinates(index: number): { x: number; y: number } {
 
   return {
     x: OFFSET_X + column * TILE_GAP,
-    y: OFFSET_Y + (4 - row) * TILE_GAP
+    y: OFFSET_Y + (BOARD_ROWS - 1 - row) * TILE_GAP
   };
 }
 

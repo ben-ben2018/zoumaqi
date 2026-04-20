@@ -1,13 +1,12 @@
-import { SkillTarget, type CardData } from '../types';
+import type { CardData } from '../types';
 
 type HandCardsProps = {
   cards: CardData[];
   disabled: boolean;
-  selectedTargetId?: string;
-  onUseCard: (cardId: string, targetId?: string) => void;
+  onUseCard: (cardId: string) => void;
 };
 
-export function HandCards({ cards, disabled, selectedTargetId, onUseCard }: HandCardsProps) {
+export function HandCards({ cards, disabled, onUseCard }: HandCardsProps) {
   if (cards.length === 0) {
     return (
       <div className="rounded-[18px] border border-dashed border-ink-700/18 px-5 py-8 text-center text-sm text-ink-700">
@@ -19,7 +18,6 @@ export function HandCards({ cards, disabled, selectedTargetId, onUseCard }: Hand
   return (
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       {cards.map((card, index) => {
-        const requiresTarget = card.targetType === SkillTarget.ENEMY;
         return (
           <article
             key={`${card.id}-${index}`}
@@ -39,8 +37,8 @@ export function HandCards({ cards, disabled, selectedTargetId, onUseCard }: Hand
 
             <button
               className="mt-4 rounded-[14px] bg-[linear-gradient(180deg,#6f4e39,#513828)] px-4 py-3 text-sm text-ink-50 disabled:cursor-not-allowed disabled:opacity-45"
-              disabled={disabled || card.isPassive || (requiresTarget && !selectedTargetId)}
-              onClick={() => onUseCard(card.id, requiresTarget ? selectedTargetId : selectedTargetId || undefined)}
+              disabled={disabled || card.isPassive}
+              onClick={() => onUseCard(card.id)}
               type="button"
             >
               {card.isPassive ? '持续生效' : '打出卡牌'}

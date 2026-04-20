@@ -89,14 +89,14 @@ afterEach(() => {
 });
 
 describe('boardData', () => {
-  it('creates 50 tiles with correct special indices', () => {
+  it('creates 100 tiles with correct special indices', () => {
     const board = createBoardData();
 
-    expect(board.totalTiles).toBe(50);
+    expect(board.totalTiles).toBe(100);
     expect(SHOP_TILE_INDICES.every((index) => board.tiles[index]?.label === '商')).toBe(true);
     expect(MYSTERY_TILE_INDICES.every((index) => board.tiles[index]?.label === '奇')).toBe(true);
     expect(BOSS_TILE_INDICES.every((index) => board.tiles[index]?.label === '首')).toBe(true);
-    expect(board.tiles[49]?.label).toBe('终');
+    expect(board.tiles[99]?.label).toBe('终');
   });
 
   it('mystery tile can grant next-turn roll bonus', () => {
@@ -149,6 +149,22 @@ describe('boardData', () => {
 });
 
 describe('movement tile logic', () => {
+  it('rolling dice immediately moves the player without needing a second action', () => {
+    const state = createTestState();
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const roll = createMoveContext(state, '0', '0');
+    const rollDice = DamaqiGame.moves?.rollDice as ((context: never) => void) | undefined;
+
+    rollDice?.(roll.context);
+
+    expect(state.players['0'].lastRoll).toBe(1);
+    expect(state.players['0'].position).toBe(1);
+    expect(state.players['0'].hasMovedThisTurn).toBe(true);
+    expect(state.pendingRoll).toBeNull();
+    expect(state.turnStage).toBe(TurnStage.CARD);
+  });
+
   it('passing through a shop tile pauses movement and finishing shop continues the remaining steps', () => {
     const state = createTestState();
     state.turnStage = TurnStage.MOVE;
@@ -381,6 +397,61 @@ describe('card effects', () => {
 });
 
 describe('sect skills', () => {
+  it('active skill can be used before rolling and still keeps the turn in roll stage', () => {
+    const state = createTestState();
+    const useSkill = createMoveContext(state, '0', '0');
+    const useActiveSkill = DamaqiGame.moves?.useActiveSkill as ((context: never, targetPlayerId?: string) => void) | undefined;
+
+    useActiveSkill?.(useSkill.context);
+
+    expect(state.players['0'].hasUsedSkillThisTurn).toBe(true);
+    expect(state.players['0'].activeSkillCooldown).toBeGreaterThan(0);
+    expect(state.turnStage).toBe(TurnStage.ROLL);
+    expect(useSkill.events.endTurn).not.toHaveBeenCalled();
+
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const roll = createMoveContext(state, '0', '0');
+    const rollDice = DamaqiGame.moves?.rollDice as ((context: never) => void) | undefined;
+
+    rollDice?.(roll.context);
+
+    expect(state.players['0'].position).toBe(1);
+    expect(state.turnStage).toBe(TurnStage.CARD);
+  });
+
+  it('cards gained from an active skill can be used immediately before rolling', () => {
+    const state = createTestState();
+    const useSkill = createMoveContext(state, '0', '0');
+    const useActiveSkill = DamaqiGame.moves?.useActiveSkill as ((context: never, targetPlayerId?: string) => void) | undefined;
+    const useCard = DamaqiGame.moves?.useCard as
+      | ((context: never, cardId: string, targetPlayerId?: string, usageArgs?: never) => void)
+      | undefined;
+
+    useActiveSkill?.(useSkill.context);
+    useCard?.(useSkill.context, 'miaoshou_huichun');
+
+    expect(state.players['0'].handCards.some((card) => card.id === 'miaoshou_huichun')).toBe(false);
+    expect(state.players['0'].buffs.miaoshou_recovery?.value).toEqual({
+      bonuses: [6, 6]
+    });
+    expect(state.turnStage).toBe(TurnStage.ROLL);
+  });
+
+  it('finishing card stage ends the turn directly when the skill was already used earlier this turn', () => {
+    const state = createTestState();
+    state.turnStage = TurnStage.CARD;
+    state.players['0'].hasUsedSkillThisTurn = true;
+    state.players['0'].activeSkillCooldown = 2;
+
+    const finish = createMoveContext(state, '0', '0');
+    const finishCardStage = DamaqiGame.moves?.finishCardStage as ((context: never) => void) | undefined;
+
+    finishCardStage?.(finish.context);
+
+    expect(finish.events.endTurn).toHaveBeenCalledTimes(1);
+    expect(state.turnStage).toBe(TurnStage.CARD);
+  });
+
   it('maps active skill cooldowns from menpai.md', () => {
     expect(getActiveSkillCooldownTurns(Sect.QINGXI)).toBe(2);
     expect(getActiveSkillCooldownTurns(Sect.GUYUN)).toBe(3);
