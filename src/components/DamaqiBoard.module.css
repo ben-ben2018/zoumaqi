@@ -1,0 +1,335 @@
+.shell {
+  position: relative;
+  display: grid;
+  gap: 20px;
+  padding: clamp(18px, 2vw, 28px);
+  border: 1px solid rgba(83, 61, 31, 0.14);
+  border-radius: 32px;
+  background:
+    linear-gradient(180deg, rgba(255, 252, 244, 0.96), rgba(235, 226, 207, 0.92)),
+    repeating-linear-gradient(
+      90deg,
+      rgba(109, 78, 47, 0.03) 0,
+      rgba(109, 78, 47, 0.03) 1px,
+      transparent 1px,
+      transparent 72px
+    );
+  box-shadow: 0 30px 80px rgba(73, 55, 28, 0.12);
+}
+
+.shell::before {
+  position: absolute;
+  inset: 12px;
+  border: 1px solid rgba(109, 78, 47, 0.12);
+  border-radius: 22px;
+  content: '';
+  pointer-events: none;
+}
+
+.grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.55fr);
+}
+
+.boardBlock,
+.sideColumn,
+.handBlock {
+  position: relative;
+  z-index: 1;
+}
+
+.boardHeader,
+.handHeader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.sectionKicker {
+  margin: 0 0 6px;
+  color: #6c4f3f;
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.sectionTitle {
+  margin: 0;
+  color: #312619;
+  font-family: 'STKaiti', 'KaiTi', serif;
+  font-size: clamp(1.4rem, 2vw, 2rem);
+}
+
+.turnBadge {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.turnBadge span {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(112, 75, 52, 0.1);
+  color: #4a3724;
+  font-size: 0.88rem;
+}
+
+.logPanel,
+.noticeCard,
+.targetCard {
+  padding: 16px 18px;
+  border: 1px solid rgba(89, 69, 42, 0.12);
+  border-radius: 22px;
+  background: rgba(255, 250, 241, 0.82);
+}
+
+.turnMessage {
+  margin: 0;
+  color: #35291d;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.logList {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.logEntry {
+  margin: 0;
+  color: #5b4d3d;
+  font-size: 0.92rem;
+}
+
+.sideColumn {
+  display: grid;
+  gap: 16px;
+}
+
+.noticeTitle {
+  margin: 0 0 10px;
+  color: #2f2618;
+  font-family: 'STKaiti', 'KaiTi', serif;
+  font-size: 1.35rem;
+}
+
+.noticeText,
+.targetHint,
+.handHint {
+  margin: 0;
+  color: #5b4d3d;
+  font-size: 0.92rem;
+  line-height: 1.75;
+}
+
+.targetLabel {
+  display: block;
+  margin-bottom: 8px;
+  color: #4a3724;
+  font-size: 0.88rem;
+}
+
+.targetSelect {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(89, 69, 42, 0.18);
+  border-radius: 14px;
+  background: rgba(252, 247, 238, 0.96);
+  color: #34291d;
+}
+
+.quickActions {
+  display: grid;
+  gap: 10px;
+}
+
+.quickButton,
+.skillButton {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(108, 79, 63, 0.14), rgba(86, 65, 42, 0.1));
+  color: #382c1f;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.quickButton:hover:not(:disabled),
+.skillButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.quickButton:disabled,
+.skillButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.quickButtonActive,
+.skillButton {
+  box-shadow: 0 12px 24px rgba(85, 55, 29, 0.12);
+}
+
+.skillButton {
+  background: linear-gradient(180deg, #6f4e39, #513828);
+  color: #f8ecd8;
+}
+
+.playerGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.handBlock {
+  padding: 18px;
+  border: 1px solid rgba(89, 69, 42, 0.12);
+  border-radius: 24px;
+  background: rgba(255, 249, 238, 0.72);
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(38, 28, 18, 0.34);
+}
+
+.choiceModal {
+  width: min(100%, 480px);
+  padding: 24px;
+  border: 1px solid rgba(89, 69, 42, 0.16);
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(255, 251, 243, 0.97), rgba(235, 226, 206, 0.94));
+  box-shadow: 0 28px 64px rgba(73, 55, 28, 0.22);
+}
+
+.choiceTitle {
+  margin: 0 0 10px;
+  color: #2f2618;
+  font-family: 'STKaiti', 'KaiTi', serif;
+  font-size: 1.8rem;
+}
+
+.choiceText {
+  margin: 0;
+  color: #5b4d3d;
+  line-height: 1.75;
+}
+
+.stepList {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.stepButton,
+.cancelButton {
+  padding: 12px 14px;
+  border-radius: 16px;
+  color: #3a2d20;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.stepButton {
+  background: linear-gradient(180deg, rgba(108, 79, 63, 0.14), rgba(86, 65, 42, 0.1));
+}
+
+.cancelButton {
+  width: 100%;
+  margin-top: 14px;
+  background: rgba(111, 78, 57, 0.08);
+}
+
+.stepButton:hover,
+.cancelButton:hover {
+  transform: translateY(-1px);
+}
+
+.discardList {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  max-height: min(60vh, 520px);
+  overflow: auto;
+}
+
+.discardCard {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(89, 69, 42, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 248, 235, 0.82);
+}
+
+.discardType {
+  margin: 0 0 6px;
+  color: #6c4f3f;
+  font-size: 0.76rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.discardName {
+  margin: 0;
+  color: #2f2618;
+  font-family: 'STKaiti', 'KaiTi', serif;
+  font-size: 1.35rem;
+}
+
+.discardDescription {
+  margin: 10px 0 0;
+  color: #5b4d3d;
+  line-height: 1.7;
+}
+
+.discardButton {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #6f4e39, #513828);
+  color: #f8ecd8;
+  transition: transform 180ms ease;
+}
+
+.discardButton:hover {
+  transform: translateY(-1px);
+}
+
+.lockNotice {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border: 1px dashed rgba(89, 69, 42, 0.2);
+  border-radius: 18px;
+  background: rgba(255, 248, 235, 0.7);
+}
+
+@media (max-width: 1120px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .playerGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .playerGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .stepList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
