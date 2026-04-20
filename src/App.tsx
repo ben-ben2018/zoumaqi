@@ -14,9 +14,10 @@ const DamaqiClient = Client({
 });
 
 const seats: PlayerID[] = ['0', '1', '2', '3'];
+const HUMAN_PLAYER_ID: PlayerID = '0';
 
 export default function App() {
-  const [playerID, setPlayerID] = useState<PlayerID>('0');
+  const [viewPlayerID, setViewPlayerID] = useState<PlayerID>(HUMAN_PLAYER_ID);
 
   return (
     <main className={styles.shell}>
@@ -25,30 +26,30 @@ export default function App() {
           <p className={styles.kicker}>燕云十六声 · 打马棋</p>
           <h1 className={styles.title}>水墨长卷中的 2v2 棋局对弈</h1>
           <p className={styles.summary}>
-            当前实现聚焦本地单机演示：你可以切换座位，依次操作 4 名角色完成掷骰、移动、购牌、出牌与门派技能。
+            当前实现支持 1P 对战 3 名人机。你固定操控 1P，2P-4P 会依据策略文档自动完成掷骰、移动、购牌、出牌、技能与弃牌。
           </p>
         </div>
 
         <div className={styles.seatBox}>
-          <span className={styles.seatLabel}>本地操作者座位</span>
+          <span className={styles.seatLabel}>观战座位</span>
           <div className={styles.seatList}>
             {seats.map((seat) => (
               <button
                 key={seat}
-                className={seat === playerID ? styles.seatButtonActive : styles.seatButton}
-                onClick={() => setPlayerID(seat)}
+                className={seat === viewPlayerID ? styles.seatButtonActive : styles.seatButton}
+                onClick={() => setViewPlayerID(seat)}
                 type="button"
               >
                 {Number(seat) + 1}P
               </button>
             ))}
           </div>
-          <p className={styles.seatHint}>回合轮转后切换到对应座位，即可继续本地对战测试。</p>
+          <p className={styles.seatHint}>1P 为人类，切换座位只会改变观察视角，不会接管 AI。</p>
         </div>
       </section>
 
       <section className={styles.clientFrame}>
-        <DamaqiClient playerID={playerID} />
+        <DamaqiClient playerID={HUMAN_PLAYER_ID} humanPlayerID={HUMAN_PLAYER_ID} viewPlayerID={viewPlayerID} />
       </section>
     </main>
   );

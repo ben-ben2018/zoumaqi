@@ -117,6 +117,7 @@ export function grantCardsToPlayer(G: GameState, playerId: PlayerID, cards: Card
 
 export function createPlayers(setupData?: SetupData): Record<PlayerID, PlayerData> {
   const players: Record<PlayerID, PlayerData> = {};
+  const configuredBotIds = new Set<PlayerID>(setupData?.botPlayerIds ?? (['1', '2', '3'] as PlayerID[]));
 
   for (let index = 0; index < 4; index += 1) {
     const playerId = String(index);
@@ -126,6 +127,7 @@ export function createPlayers(setupData?: SetupData): Record<PlayerID, PlayerDat
     players[playerId] = {
       id: playerId,
       name: setupData?.playerNames?.[index] ?? `${index + 1}P`,
+      isBot: configuredBotIds.has(playerId as PlayerID),
       team,
       sect,
       position: 0,

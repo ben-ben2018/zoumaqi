@@ -10,6 +10,13 @@ import {
   type GameState,
   type SetupData
 } from '../types';
+import {
+  chooseAiCardPlay,
+  chooseAiDiscardCardId,
+  chooseAiMoveSteps,
+  chooseAiShopCardId,
+  chooseAiSkillPlay
+} from './ai';
 import { applyBossEvent, applyMysteryEvent, createBoardData, generateShopCards } from './board/boardData';
 import { executeCardEffect } from './cards/cardEffects';
 import {
@@ -52,14 +59,61 @@ function setDiscardStage(events: EventsAPI, playerId: PlayerID): void {
   });
 }
 
-function syncActivePlayers(G: GameState, events: EventsAPI): void {
+function resolveBotPendingDiscards(G: GameState, ctx: Ctx, events: EventsAPI): boolean {
+  while (true) {
+    const pendingDiscard = getPendingDiscard(G);
+    if (!pendingDiscard || !G.players[pendingDiscard.playerId].isBot) {
+      break;
+    }
+
+    const pendingPlayer = G.players[pendingDiscard.playerId];
+    const discardCardId = chooseAiDiscardCardId(G, pendingDiscard.playerId) ?? pendingPlayer.handCards[0]?.id;
+    if (!discardCardId) {
+      popResolvedPendingDiscards(G);
+      continue;
+    }
+
+    const cardIndex = pendingPlayer.handCards.findIndex((card) => card.id === discardCardId);
+    if (cardIndex < 0) {
+      popResolvedPendingDiscards(G);
+      continue;
+    }
+
+    const [discardedCard] = pendingPlayer.handCards.splice(cardIndex, 1);
+    appendLog(G, `${pendingPlayer.name} 由人机逻辑弃置了 ${discardedCard?.name ?? '一张手牌'}。`);
+    popResolvedPendingDiscards(G);
+  }
+
+  if (getPendingDiscard(G)) {
+    return false;
+  }
+
+  if (G.pendingTurnResolution === 'endTurn') {
+    G.pendingTurnResolution = null;
+    const turnPlayer = G.players[ctx.currentPlayer];
+    if (shouldAutoSkipTurn(turnPlayer)) {
+      resetSkippedStatus(turnPlayer);
+    }
+    events?.endTurn?.();
+    return true;
+  }
+
+  return false;
+}
+
+function syncActivePlayers(G: GameState, ctx: Ctx, events: EventsAPI): boolean {
+  if (resolveBotPendingDiscards(G, ctx, events)) {
+    return true;
+  }
+
   const pendingDiscard = getPendingDiscard(G);
   if (pendingDiscard) {
     setDiscardStage(events, pendingDiscard.playerId);
-    return;
+    return false;
   }
 
   setStage(events, G.turnStage);
+  return false;
 }
 
 function resolveJiuliumenBegging(G: GameState, moverId: PlayerID): void {
@@ -232,7 +286,7 @@ const rollDice = ({ G, ctx, events }: MoveContext) => {
   G.pendingRoll = finalRoll;
   G.turnStage = TurnStage.MOVE;
   appendLog(G, `${player.name} 掷出了 ${baseRoll} 点，当前可移动 ${finalRoll} 格。`);
-  syncActivePlayers(G, events);
+  syncActivePlayers(G, ctx, events);
 };
 
 const movePlayer = ({ G, ctx, events }: MoveContext, requestedSteps?: number) => {
@@ -260,12 +314,12 @@ const movePlayer = ({ G, ctx, events }: MoveContext, requestedSteps?: number) =>
 
   if (G.pendingShop) {
     G.turnStage = TurnStage.SHOP;
-    syncActivePlayers(G, events);
+    syncActivePlayers(G, ctx, events);
     return;
   }
 
   G.turnStage = TurnStage.CARD;
-  syncActivePlayers(G, events);
+  syncActivePlayers(G, ctx, events);
 };
 
 const buyCard = ({ G, ctx, events }: MoveContext, cardId: string) => {
@@ -291,7 +345,7 @@ const buyCard = ({ G, ctx, events }: MoveContext, cardId: string) => {
   grantCardsToPlayer(G, ctx.currentPlayer, [card], '商店购买');
   G.currentShop = G.currentShop.filter((item) => item.id !== cardId);
   appendLog(G, `${player.name} 购入了 ${card.name}。`);
-  syncActivePlayers(G, events);
+  syncActivePlayers(G, ctx, events);
 };
 
 const finishShop = ({ G, ctx, events }: MoveContext) => {
@@ -321,14 +375,14 @@ const finishShop = ({ G, ctx, events }: MoveContext) => {
 
     if (G.pendingShop) {
       G.turnStage = TurnStage.SHOP;
-      syncActivePlayers(G, events);
+      syncActivePlayers(G, ctx, events);
       return;
     }
   }
 
   if (G.pendingTurnResolution === 'endTurn') {
     if (getPendingDiscard(G)) {
-      syncActivePlayers(G, events);
+      syncActivePlayers(G, ctx, events);
       return;
     }
 
@@ -338,7 +392,7 @@ const finishShop = ({ G, ctx, events }: MoveContext) => {
   }
 
   G.turnStage = resumeStage;
-  syncActivePlayers(G, events);
+  syncActivePlayers(G, ctx, events);
 };
 
 const useCard = (
@@ -373,10 +427,10 @@ const useCard = (
     G.turnStage = TurnStage.SHOP;
   }
 
-  syncActivePlayers(G, events);
+  syncActivePlayers(G, ctx, events);
 };
 
-const finishCardStage = ({ G, events }: MoveContext) => {
+const finishCardStage = ({ G, ctx, events }: MoveContext) => {
   if (getPendingDiscard(G)) {
     return;
   }
@@ -386,7 +440,7 @@ const finishCardStage = ({ G, events }: MoveContext) => {
   }
 
   G.turnStage = TurnStage.SKILL;
-  syncActivePlayers(G, events);
+  syncActivePlayers(G, ctx, events);
 };
 
 const useActiveSkill = ({ G, ctx, events }: MoveContext, targetPlayerId?: PlayerID) => {
@@ -419,13 +473,13 @@ const useActiveSkill = ({ G, ctx, events }: MoveContext, targetPlayerId?: Player
   if (G.pendingShop) {
     G.pendingTurnResolution = 'endTurn';
     G.turnStage = TurnStage.SHOP;
-    syncActivePlayers(G, events);
+    syncActivePlayers(G, ctx, events);
     return;
   }
 
   if (getPendingDiscard(G)) {
     G.pendingTurnResolution = 'endTurn';
-    syncActivePlayers(G, events);
+    syncActivePlayers(G, ctx, events);
     return;
   }
 
@@ -461,7 +515,7 @@ const discardOverflowCard = ({ G, ctx, events, playerID }: MoveContext, cardId: 
   popResolvedPendingDiscards(G);
 
   if (getPendingDiscard(G)) {
-    syncActivePlayers(G, events);
+    syncActivePlayers(G, ctx, events);
     return;
   }
 
@@ -475,8 +529,93 @@ const discardOverflowCard = ({ G, ctx, events, playerID }: MoveContext, cardId: 
     return;
   }
 
-  syncActivePlayers(G, events);
+  syncActivePlayers(G, ctx, events);
 };
+
+function createInternalMoveContext(G: GameState, ctx: Ctx, events: EventsAPI): MoveContext {
+  return {
+    G,
+    ctx,
+    events,
+    playerID: ctx.currentPlayer
+  } as MoveContext;
+}
+
+function runBotTurn(G: GameState, ctx: Ctx, events: EventsAPI): void {
+  const botPlayerId = ctx.currentPlayer;
+
+  for (let safety = 0; safety < 48; safety += 1) {
+    if (G.winnerTeam !== null || ctx.currentPlayer !== botPlayerId) {
+      return;
+    }
+
+    const pendingDiscard = getPendingDiscard(G);
+    if (pendingDiscard) {
+      if (!G.players[pendingDiscard.playerId].isBot) {
+        return;
+      }
+
+      if (resolveBotPendingDiscards(G, ctx, events)) {
+        return;
+      }
+      continue;
+    }
+
+    const moveContext = createInternalMoveContext(G, ctx, events);
+
+    if (G.turnStage === TurnStage.ROLL) {
+      rollDice(moveContext);
+      continue;
+    }
+
+    if (G.turnStage === TurnStage.MOVE) {
+      movePlayer(moveContext, chooseAiMoveSteps(G, botPlayerId, G.pendingRoll ?? 0));
+      continue;
+    }
+
+    if (G.turnStage === TurnStage.SHOP) {
+      const preShopTurnResolution = G.pendingTurnResolution;
+      const nextCardId = chooseAiShopCardId(G, botPlayerId);
+      if (nextCardId) {
+        buyCard(moveContext, nextCardId);
+        continue;
+      }
+
+      finishShop(moveContext);
+      if (preShopTurnResolution === 'endTurn' && G.pendingTurnResolution === null && !G.pendingShop) {
+        return;
+      }
+      continue;
+    }
+
+    if (G.turnStage === TurnStage.CARD) {
+      const nextCardPlay = chooseAiCardPlay(G, botPlayerId);
+      if (nextCardPlay) {
+        useCard(moveContext, nextCardPlay.cardId, nextCardPlay.targetPlayerId, nextCardPlay.usageArgs);
+        continue;
+      }
+
+      finishCardStage(moveContext);
+      continue;
+    }
+
+    if (G.turnStage === TurnStage.SKILL) {
+      const skillPlay = chooseAiSkillPlay(G, botPlayerId);
+      if (skillPlay) {
+        useActiveSkill(moveContext, skillPlay.targetPlayerId);
+        if (!G.pendingShop && !getPendingDiscard(G) && G.pendingTurnResolution === null) {
+          return;
+        }
+        continue;
+      }
+
+      finishSkillStage(moveContext);
+      return;
+    }
+
+    return;
+  }
+}
 
 export const DamaqiGame: Game<GameState, Record<string, never>, SetupData> = {
   name: 'damaqi',
@@ -558,7 +697,7 @@ export const DamaqiGame: Game<GameState, Record<string, never>, SetupData> = {
         appendLog(G, `${player.name} 受控，自动跳过本回合。`);
         if (getPendingDiscard(G)) {
           G.pendingTurnResolution = 'endTurn';
-          syncActivePlayers(G, events);
+          syncActivePlayers(G, ctx, events);
           return;
         }
         resetSkippedStatus(player);
@@ -567,7 +706,11 @@ export const DamaqiGame: Game<GameState, Record<string, never>, SetupData> = {
       }
 
       appendLog(G, `轮到 ${player.name}（${player.team === 0 ? '赤队' : '青队'}）行动。`);
-      syncActivePlayers(G, events);
+      syncActivePlayers(G, ctx, events);
+
+      if (player.isBot && G.winnerTeam === null) {
+        runBotTurn(G, ctx, events);
+      }
     },
     onEnd: ({ G, ctx }) => {
       endTurnEffects(G, ctx.currentPlayer);

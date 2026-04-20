@@ -25,7 +25,10 @@ type BoardMoveAPI = {
   discardOverflowCard: (cardId: string) => void;
 };
 
-type DamaqiBoardProps = BoardProps<GameState>;
+type DamaqiBoardProps = BoardProps<GameState> & {
+  humanPlayerID?: PlayerID;
+  viewPlayerID?: PlayerID;
+};
 type PendingCardAction = {
   cardId: string;
   targetPlayerId?: PlayerID;
@@ -45,9 +48,10 @@ function getDefaultTarget(
   return ally?.id ?? '';
 }
 
-export function DamaqiBoard({ G, ctx, moves, playerID }: DamaqiBoardProps) {
+export function DamaqiBoard({ G, ctx, moves, humanPlayerID, viewPlayerID }: DamaqiBoardProps) {
   const moveApi = moves as unknown as BoardMoveAPI;
-  const effectivePlayerId = (playerID ?? ctx.currentPlayer ?? '0') as PlayerID;
+  const actualHumanPlayerId = (humanPlayerID ?? '0') as PlayerID;
+  const effectivePlayerId = (viewPlayerID ?? actualHumanPlayerId) as PlayerID;
   const currentPlayer = G.players[ctx.currentPlayer];
   const myPlayer = G.players[effectivePlayerId];
   const [selectedTargetId, setSelectedTargetId] = useState<PlayerID | ''>(() =>
@@ -68,14 +72,15 @@ export function DamaqiBoard({ G, ctx, moves, playerID }: DamaqiBoardProps) {
   const isForcedDiscardActive = Boolean(activePendingDiscard);
   const isMyPendingDiscard = activePendingDiscard?.playerId === effectivePlayerId;
   const selectedTarget = selectedTargetId ? G.players[selectedTargetId] : null;
-  const isLocalTurn = effectivePlayerId === ctx.currentPlayer;
-  const areActionButtonsDisabled = !isLocalTurn || isForcedDiscardActive;
+  const isHumanTurn = actualHumanPlayerId === ctx.currentPlayer;
+  const isViewingHumanSeat = effectivePlayerId === actualHumanPlayerId;
+  const areActionButtonsDisabled = !isHumanTurn || !isViewingHumanSeat || isForcedDiscardActive;
 
   useEffect(() => {
-    if (G.turnStage !== TurnStage.CARD || !isLocalTurn) {
+    if (G.turnStage !== TurnStage.CARD || !isHumanTurn || !isViewingHumanSeat) {
       setPendingCardAction(null);
     }
-  }, [G.turnStage, isLocalTurn, ctx.currentPlayer]);
+  }, [G.turnStage, isHumanTurn, isViewingHumanSeat, ctx.currentPlayer]);
 
   useEffect(() => {
     if (isForcedDiscardActive) {
@@ -147,7 +152,12 @@ export function DamaqiBoard({ G, ctx, moves, playerID }: DamaqiBoardProps) {
               {myPlayer.name} · {getTeamLabel(myPlayer.team)}
             </h3>
             <p className={styles.noticeText}>
-              当前操作者门派为 {getSectLabel(myPlayer.sect)}。{isLocalTurn ? '现在轮到你操作。' : '若要继续测试，请切换到当前回合座位。'}
+              当前视角为 {myPlayer.name}（{myPlayer.isBot ? 'AI' : '人类'}）· {getSectLabel(myPlayer.sect)}。
+              {isHumanTurn
+                ? isViewingHumanSeat
+                  ? '现在轮到你操作 1P。'
+                  : '当前是你的回合，但你正在观察其他座位。切回 1P 后即可操作。'
+                : `${currentPlayer.name} 正由 ${currentPlayer.isBot ? 'AI' : '人类'}处理本回合。`}
             </p>
           </div>
 
@@ -231,7 +241,7 @@ export function DamaqiBoard({ G, ctx, moves, playerID }: DamaqiBoardProps) {
             <h2 className={styles.sectionTitle}>当前座位：{myPlayer.name}</h2>
           </div>
           <p className={styles.handHint}>
-            被动卡会持续留在手牌中生效。攻击/辅助卡请先在右侧选择目标，再从这里打出。
+            被动卡会持续留在手牌中生效。攻击/辅助卡请先在右侧选择目标，再从这里打出。AI 座位会自动执行。
           </p>
         </div>
 
@@ -283,7 +293,7 @@ export function DamaqiBoard({ G, ctx, moves, playerID }: DamaqiBoardProps) {
               </div>
             ) : (
               <div className={styles.lockNotice}>
-                <p className={styles.choiceText}>当前本地座位不能代为处理。请切换到 {pendingDiscardPlayer.name} 对应座位后弃牌。</p>
+                <p className={styles.choiceText}>当前未处于可操作视角。切回 1P 视角后才能继续处理你的强制弃牌。</p>
               </div>
             )}
           </section>

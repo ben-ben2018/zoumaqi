@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Ctx } from 'boardgame.io';
+import { Client as BgioClient } from 'boardgame.io/client';
 
+import {
+  chooseAiCardPlay,
+  chooseAiDiscardCardId,
+  chooseAiMoveSteps,
+  chooseAiShopCardId,
+  chooseAiSkillPlay
+} from '../game/ai';
 import { applyBossEvent, applyMysteryEvent, createBoardData, SHOP_TILE_INDICES, MYSTERY_TILE_INDICES, BOSS_TILE_INDICES } from '../game/board/boardData';
 import {
   drawRandomCards,
@@ -217,6 +225,121 @@ describe('opening economy', () => {
     expect(state.players['0'].gold).toBe(40);
     expect(state.players['1'].gold).toBe(40);
     expect(state.players['3'].gold).toBe(40);
+  });
+});
+
+describe('ai logic', () => {
+  it('defaults 2P-4P to bot-controlled seats', () => {
+    const players = createPlayers();
+
+    expect(players['0'].isBot).toBe(false);
+    expect(players['1'].isBot).toBe(true);
+    expect(players['2'].isBot).toBe(true);
+    expect(players['3'].isBot).toBe(true);
+  });
+
+  it('prioritizes wuxiang_jinshen in shop when an enemy odd-attack threat is nearby', () => {
+    const state = createTestState();
+    state.turnStage = TurnStage.SHOP;
+    state.pendingShop = true;
+    state.players['0'].gold = 60;
+    state.players['1'].position = 2;
+    state.currentShop = [findCardDefinitionById('wuxiang_jinshen')!, findCardDefinitionById('liangshang_junzi')!];
+    addCardsToHand(state.players['1'], [findCardDefinitionById('lingxu_yizhi')!]);
+
+    expect(chooseAiShopCardId(state, '0')).toBe('wuxiang_jinshen');
+  });
+
+  it('uses positive movement buffs on the teammate for control archetypes', () => {
+    const players = createPlayers({
+      sects: [Sect.QINGXI, Sect.LIYUAN, Sect.TIANQUAN, Sect.GUYUN]
+    });
+    applyOpeningEconomy(players);
+    const state: GameState = {
+      players,
+      board: createBoardData(),
+      currentShop: [],
+      pendingShop: false,
+      pendingShopResumeStage: null,
+      pendingDiscards: [],
+      pendingTurnResolution: null,
+      pendingRoll: null,
+      pendingMovement: null,
+      pendingMovementSource: null,
+      turnStage: TurnStage.CARD,
+      actionLog: [],
+      winnerTeam: null,
+      turnMessage: ''
+    };
+    addCardsToHand(state.players['0'], [findCardDefinitionById('yinyang_mizongbu')!]);
+
+    expect(chooseAiCardPlay(state, '0')).toEqual({
+      cardId: 'yinyang_mizongbu',
+      targetPlayerId: '2'
+    });
+  });
+
+  it('chooses a shorter rolled move when it enables lingxu odd-attack range', () => {
+    const state = createTestState();
+    state.players['1'].position = 2;
+    addCardsToHand(state.players['0'], [findCardDefinitionById('lingxu_yizhi')!]);
+
+    expect(chooseAiMoveSteps(state, '0', 6)).toBe(4);
+  });
+
+  it('uses Sangengtian active skill only when a target is inside the skill range', () => {
+    const players = createPlayers({
+      sects: [Sect.SANGENGTIAN, Sect.LIYUAN, Sect.TIANQUAN, Sect.GUYUN]
+    });
+    applyOpeningEconomy(players);
+    const state: GameState = {
+      players,
+      board: createBoardData(),
+      currentShop: [],
+      pendingShop: false,
+      pendingShopResumeStage: null,
+      pendingDiscards: [],
+      pendingTurnResolution: null,
+      pendingRoll: null,
+      pendingMovement: null,
+      pendingMovementSource: null,
+      turnStage: TurnStage.SKILL,
+      actionLog: [],
+      winnerTeam: null,
+      turnMessage: ''
+    };
+    state.players['1'].position = 5;
+
+    expect(chooseAiSkillPlay(state, '0')).toEqual({
+      targetPlayerId: '1'
+    });
+  });
+
+  it('drops lingxu_yizhi first when no enemy is close enough to threaten or attack', () => {
+    const state = createTestState();
+    state.players['0'].position = 20;
+    state.players['1'].position = 0;
+    state.players['3'].position = 0;
+    addCardsToHand(state.players['0'], [findCardDefinitionById('lingxu_yizhi')!, findCardDefinitionById('jixiang_haozao')!]);
+
+    expect(chooseAiDiscardCardId(state, '0')).toBe('lingxu_yizhi');
+  });
+
+  it('automatically resolves bot turns until control returns to the human seat', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const client = BgioClient({
+      game: DamaqiGame,
+      numPlayers: 4
+    });
+
+    client.events.endTurn?.();
+
+    const state = client.getState();
+    expect(state?.ctx.currentPlayer).toBe('0');
+    expect(state?.ctx.turn).toBe(5);
+    expect(state?.G.players['1'].position).toBeGreaterThan(0);
+    expect(state?.G.players['2'].position).toBeGreaterThan(0);
+    expect(state?.G.players['3'].position).toBeGreaterThan(0);
   });
 });
 

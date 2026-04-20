@@ -35,7 +35,12 @@ export function PlayerPanel({ player, isCurrent, isSelf }: PlayerPanelProps) {
           <p className="m-0 text-xs uppercase tracking-[0.18em] text-ink-500">{getTeamLabel(player.team)}</p>
           <h3 className="m-0 font-display text-2xl text-ink-900">{player.name}</h3>
         </div>
-        <span className="rounded-full bg-ink-100 px-3 py-1 text-xs text-ink-700">{getSectLabel(player.sect)}</span>
+        <div className="flex flex-wrap justify-end gap-2">
+          <span className="rounded-full bg-ink-100 px-3 py-1 text-xs text-ink-700">{getSectLabel(player.sect)}</span>
+          <span className="rounded-full bg-[rgba(111,78,57,0.1)] px-3 py-1 text-xs text-ink-700">
+            {player.isBot ? 'AI' : '玩家'}
+          </span>
+        </div>
       </div>
 
       <dl className="grid grid-cols-2 gap-3 text-sm text-ink-700">

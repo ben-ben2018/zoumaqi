@@ -81,6 +81,7 @@ export interface CardUsageArgs {
 export interface PlayerData {
   id: string;
   name: string;
+  isBot: boolean;
   team: PlayerTeam;
   sect: Sect;
   position: number;
@@ -113,6 +114,7 @@ export interface BoardData {
 export interface SetupData {
   sects?: Sect[];
   playerNames?: string[];
+  botPlayerIds?: PlayerID[];
 }
 
 export interface PendingDiscardState {
