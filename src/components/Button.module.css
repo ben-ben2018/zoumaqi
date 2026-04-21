@@ -1,0 +1,76 @@
+.button {
+  --button-text: #4a3220;
+  --button-border: rgba(122, 91, 53, 0.28);
+  --button-overlay: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(123, 93, 57, 0.08));
+  --button-shadow: 0 10px 22px rgba(83, 60, 25, 0.16);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--button-border);
+  background-color: transparent;
+  background-image:
+    var(--button-overlay),
+    url('../assets/side-btn-hover.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  box-shadow: var(--button-shadow);
+  color: var(--button-text);
+  line-height: 1.2;
+  text-align: center;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition:
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 180ms ease,
+    opacity 180ms ease;
+}
+
+.button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(83, 60, 25, 0.22);
+  filter: brightness(1.03) saturate(1.05);
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  filter: saturate(0.72);
+  box-shadow: none;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.primary {
+  --button-text: #432b18;
+  --button-border: rgba(122, 84, 37, 0.34);
+  --button-overlay: linear-gradient(180deg, rgba(214, 164, 84, 0.2), rgba(122, 82, 36, 0.14));
+  --button-shadow: 0 12px 24px rgba(85, 56, 29, 0.18);
+}
+
+.secondary {
+  --button-text: #513a26;
+  --button-border: rgba(130, 99, 62, 0.24);
+  --button-overlay: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(133, 108, 74, 0.05));
+  --button-shadow: 0 8px 18px rgba(83, 60, 25, 0.12);
+}
+
+.active {
+  --button-text: #2d1e11;
+  --button-border: rgba(143, 101, 39, 0.36);
+  --button-overlay: linear-gradient(180deg, rgba(236, 188, 96, 0.28), rgba(132, 88, 39, 0.18));
+  --button-shadow: 0 14px 30px rgba(101, 63, 23, 0.24);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button {
+    transition-duration: 0.01ms !important;
+  }
+}

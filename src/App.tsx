@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import styles from './App.module.css';
+import { Button } from './components/Button';
 import { DamaqiBoard } from './components/DamaqiBoard';
 import { getSectLabel, getTeamLabel } from './game/helpers';
 import { type SeatID } from './multiplayer/protocol';
@@ -56,6 +57,8 @@ export default function App() {
   const [createPassword, setCreatePassword] = useState('');
   const [joinRoomCode, setJoinRoomCode] = useState('');
   const [joinPassword, setJoinPassword] = useState('');
+  const [lobbyJoinPasswords, setLobbyJoinPasswords] = useState<Record<string, string>>({});
+  const [nicknameDraft, setNicknameDraft] = useState(playerName);
   const [roomPasswordDraft, setRoomPasswordDraft] = useState('');
   const [viewSeatId, setViewSeatId] = useState<string>('0');
 
@@ -65,6 +68,11 @@ export default function App() {
   );
   const mySeatId = selfMember?.seatId ?? null;
   const isHost = room?.hostMemberId === room?.selfMemberId;
+  const needsPlayerName = !playerName.trim();
+
+  useEffect(() => {
+    setNicknameDraft(playerName);
+  }, [playerName]);
 
   useEffect(() => {
     if (!room) {
@@ -88,7 +96,6 @@ export default function App() {
 
   const handleCreateRoom = async () => {
     if (!playerName.trim()) {
-      setError('请先填写昵称。');
       return;
     }
 
@@ -101,7 +108,6 @@ export default function App() {
 
   const handleJoinRoom = async () => {
     if (!playerName.trim()) {
-      setError('请先填写昵称。');
       return;
     }
 
@@ -112,60 +118,68 @@ export default function App() {
     });
   };
 
+  const handleJoinLobbyRoom = async (roomCode: string) => {
+    if (!playerName.trim()) {
+      return;
+    }
+
+    const password = lobbyJoinPasswords[roomCode] ?? '';
+    const result = await joinRoom({
+      roomCode,
+      name: playerName,
+      password
+    });
+
+    if (result.ok) {
+      setLobbyJoinPasswords((current) => ({
+        ...current,
+        [roomCode]: ''
+      }));
+    }
+  };
+
+  const handleConfirmNickname = () => {
+    const trimmedName = nicknameDraft.trim();
+    if (!trimmedName) {
+      setError('请先填写昵称。');
+      return;
+    }
+
+    setPlayerName(trimmedName);
+    setError(null);
+  };
+
   const renderLobby = () => (
     <main className={styles.shell}>
-      <section className="mx-auto flex h-full max-w-7xl flex-col gap-6 overflow-auto px-4 py-6 md:px-6">
-        <header className="rounded-[28px] border border-ink-700/10 bg-[rgba(255,251,243,0.85)] p-6 shadow-paper">
+      <section className="mx-auto flex h-full max-w-7xl flex-col gap-6 overflow-auto px-6 py-6">
+        {/* <header className="rounded-[28px] border border-ink-700/10 bg-[rgba(255,251,243,0.85)] p-6 shadow-paper">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="m-0 text-xs uppercase tracking-[0.2em] text-ink-500">Damaqi Online</p>
-              <h1 className="m-0 font-display text-4xl text-ink-900">联机大厅</h1>
-              <p className="mb-0 mt-3 max-w-2xl text-sm leading-7 text-ink-700">
-                所有房间与对局都由 Socket 服务端裁定。大厅仅展示房间状态，进入房间后可选座位、门派并由房主开局。
-              </p>
-            </div>
-
-            <div className="rounded-[20px] bg-[rgba(111,78,57,0.08)] px-4 py-3 text-sm text-ink-700">
-              <div>连接状态：{formatStatus(connectionState)}</div>
-              <div>房间总数：{rooms.length}</div>
-            </div>
+            <div>连接状态：{formatStatus(connectionState)}</div>
           </div>
-        </header>
+        </header> */}
 
-        <section className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <section className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-6">
           <div className="grid gap-6">
-            <section className="rounded-[28px] border border-ink-700/10 bg-[rgba(255,250,241,0.86)] p-5 shadow-paper">
-              <p className="m-0 text-xs uppercase tracking-[0.18em] text-ink-500">身份</p>
-              <h2 className="m-0 font-display text-2xl text-ink-900">玩家昵称</h2>
-              <input
-                className="mt-4 w-full rounded-[16px] border border-ink-700/12 bg-white/80 px-4 py-3 text-sm text-ink-900"
-                onChange={(event) => setPlayerName(event.target.value)}
-                placeholder="输入你的昵称"
-                value={playerName}
-              />
-            </section>
-
-            <section className="rounded-[28px] border border-ink-700/10 bg-[rgba(255,250,241,0.86)] p-5 shadow-paper">
-              <p className="m-0 text-xs uppercase tracking-[0.18em] text-ink-500">创建</p>
-              <h2 className="m-0 font-display text-2xl text-ink-900">新房间</h2>
+            <section className="rounded-[28px] border border-ink-700/10 bg-[rgba(255,250,241,0.5)] p-5 shadow-paper">
+              <h2 className="m-0 font-display text-2xl text-ink-900">创建新房间</h2>
               <input
                 className="mt-4 w-full rounded-[16px] border border-ink-700/12 bg-white/80 px-4 py-3 text-sm text-ink-900"
                 onChange={(event) => setCreatePassword(event.target.value)}
                 placeholder="房间密码，可留空"
                 value={createPassword}
               />
-              <button
-                className="mt-4 w-full rounded-[16px] bg-[linear-gradient(180deg,#6f4e39,#513828)] px-4 py-3 text-sm text-ink-50"
+              <Button
+                className="mt-4 w-full px-4 py-3 text-sm"
                 onClick={handleCreateRoom}
                 type="button"
+                variant="primary"
               >
                 创建房间
-              </button>
+              </Button>
             </section>
 
-            <section className="rounded-[28px] border border-ink-700/10 bg-[rgba(255,250,241,0.86)] p-5 shadow-paper">
-              <p className="m-0 text-xs uppercase tracking-[0.18em] text-ink-500">加入</p>
-              <h2 className="m-0 font-display text-2xl text-ink-900">指定房间</h2>
+            <section className="rounded-[28px] border border-ink-700/10 bg-[rgba(255,250,241,0.5)] p-5 shadow-paper">
+              <h2 className="m-0 font-display text-2xl text-ink-900">加入房间</h2>
               <input
                 className="mt-4 w-full rounded-[16px] border border-ink-700/12 bg-white/80 px-4 py-3 text-sm uppercase text-ink-900"
                 onChange={(event) => setJoinRoomCode(event.target.value.toUpperCase())}
@@ -178,29 +192,32 @@ export default function App() {
                 placeholder="房间密码，可留空"
                 value={joinPassword}
               />
-              <button
-                className="mt-4 w-full rounded-[16px] bg-[rgba(111,78,57,0.12)] px-4 py-3 text-sm text-ink-900"
+              <Button
+                className="mt-4 w-full px-4 py-3 text-sm"
                 onClick={handleJoinRoom}
                 type="button"
+                variant="secondary"
               >
                 加入房间
-              </button>
+              </Button>
             </section>
           </div>
 
-          <section className="rounded-[28px] border border-ink-700/10 bg-[rgba(255,250,241,0.86)] p-5 shadow-paper">
+          <section className="rounded-[28px] border border-ink-700/10 bg-[rgba(255,250,241,0.5)] p-5 shadow-paper">
             <div className="mb-4 flex items-center justify-between gap-4">
               <div>
                 <p className="m-0 text-xs uppercase tracking-[0.18em] text-ink-500">房间列表</p>
                 <h2 className="m-0 font-display text-2xl text-ink-900">在线房间</h2>
+                <div>房间总数：{rooms.length}</div>
               </div>
-              <button
-                className="rounded-full bg-[rgba(111,78,57,0.1)] px-4 py-2 text-sm text-ink-900"
+              <Button
+                className="px-4 py-2 text-sm"
                 onClick={refreshRooms}
                 type="button"
+                variant="secondary"
               >
                 刷新
-              </button>
+              </Button>
             </div>
 
             <div className="grid gap-4">
@@ -229,15 +246,31 @@ export default function App() {
                       {lobbyRoom.hasPassword && <span className="rounded-full bg-ink-100 px-3 py-1">有密码</span>}
                     </div>
                   </div>
-                  <button
-                    className="mt-4 rounded-[14px] bg-[linear-gradient(180deg,#6f4e39,#513828)] px-4 py-3 text-sm text-ink-50"
-                    onClick={() => {
-                      setJoinRoomCode(lobbyRoom.roomCode);
-                    }}
-                    type="button"
-                  >
-                    填入房间码
-                  </button>
+                  <div className="mt-4 flex items-center gap-3">
+                    {lobbyRoom.hasPassword && (
+                      <input
+                        className="min-w-0 flex-1 border border-ink-700/12 bg-white/80 px-4 py-3 text-sm text-ink-900"
+                        onChange={(event) =>
+                          setLobbyJoinPasswords((current) => ({
+                            ...current,
+                            [lobbyRoom.roomCode]: event.target.value
+                          }))
+                        }
+                        placeholder="输入房间密码"
+                        value={lobbyJoinPasswords[lobbyRoom.roomCode] ?? ''}
+                      />
+                    )}
+                    <Button
+                      className="px-4 py-3 text-sm"
+                      onClick={() => {
+                        void handleJoinLobbyRoom(lobbyRoom.roomCode);
+                      }}
+                      type="button"
+                      variant="primary"
+                    >
+                      加入房间
+                    </Button>
+                  </div>
                 </article>
               ))}
             </div>
@@ -247,9 +280,34 @@ export default function App() {
         {error && (
           <div className="rounded-[22px] border border-[rgba(139,75,60,0.2)] bg-[rgba(255,243,239,0.9)] px-5 py-4 text-sm text-[#704836]">
             <div>{error}</div>
-            <button className="mt-3 rounded-full bg-white/70 px-3 py-1 text-xs" onClick={() => setError(null)} type="button">
+            <Button className="mt-3 px-3 py-1 text-xs" onClick={() => setError(null)} type="button" variant="secondary">
               关闭
-            </button>
+            </Button>
+          </div>
+        )}
+
+        {needsPlayerName && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(8,16,26,0.62)] p-4">
+            <section className="w-full max-w-md border border-ink-700/10 bg-[rgba(255,250,241,0.72)] p-6 shadow-paper backdrop-blur-md">
+              <p className="m-0 text-xs uppercase tracking-[0.18em] text-ink-500">进入大厅</p>
+              <h2 className="mt-2 font-display text-3xl text-ink-900">先输入昵称</h2>
+              <p className="mb-0 mt-3 text-sm text-ink-700">昵称会保存在本地，下次进入会自动带出。</p>
+              <input
+                autoFocus
+                className="mt-5 w-full border border-ink-700/12 bg-white/80 px-4 py-3 text-sm text-ink-900"
+                onChange={(event) => setNicknameDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    handleConfirmNickname();
+                  }
+                }}
+                placeholder="输入你的昵称"
+                value={nicknameDraft}
+              />
+              <Button className="mt-4 w-full px-4 py-3 text-sm" onClick={handleConfirmNickname} type="button" variant="primary">
+                确认进入
+              </Button>
+            </section>
           </div>
         )}
       </section>
@@ -269,27 +327,25 @@ export default function App() {
               <div>
                 <p className="m-0 text-xs uppercase tracking-[0.2em] text-ink-500">房间管理</p>
                 <h1 className="m-0 font-display text-4xl text-ink-900">{room.roomCode}</h1>
-                <p className="mb-0 mt-3 text-sm text-ink-700">
-                  房主离开后会自动顺延到最早进入且仍在房内的玩家。空房 5 分钟会自动解散。
-                </p>
               </div>
               <div className="flex flex-wrap gap-3">
                 <span className="rounded-full bg-ink-100 px-4 py-2 text-sm text-ink-700">
                   连接状态：{formatStatus(connectionState)}
                 </span>
-                <button
-                  className="rounded-full bg-[rgba(111,78,57,0.12)] px-4 py-2 text-sm text-ink-900"
+                <Button
+                  className="px-4 py-2 text-sm"
                   onClick={() => leaveRoom()}
                   type="button"
+                  variant="secondary"
                 >
                   退出房间
-                </button>
+                </Button>
               </div>
             </div>
           </header>
 
           <section className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_360px]">
-            <section className="rounded-[28px] border border-ink-700/10 bg-[rgba(255,250,241,0.86)] p-5 shadow-paper">
+            <section className="rounded-[28px] border border-ink-700/10 bg-[rgba(255,250,241,0.5)] p-5 shadow-paper">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <p className="m-0 text-xs uppercase tracking-[0.18em] text-ink-500">座位</p>
@@ -338,8 +394,8 @@ export default function App() {
                       </select>
 
                       <div className="mt-4 flex gap-3">
-                        <button
-                          className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,#6f4e39,#513828)] px-4 py-3 text-sm text-ink-50 disabled:opacity-45"
+                        <Button
+                          className="flex-1 px-4 py-3 text-sm"
                           disabled={Boolean(occupant && occupant.id !== selfMember?.id)}
                           onClick={() => {
                             void claimSeat({
@@ -347,20 +403,22 @@ export default function App() {
                             });
                           }}
                           type="button"
+                          variant="primary"
                         >
                           {isMine ? '已占座' : '占据此位'}
-                        </button>
+                        </Button>
 
                         {isMine && (
-                          <button
-                            className="rounded-[14px] bg-[rgba(111,78,57,0.12)] px-4 py-3 text-sm text-ink-900"
+                          <Button
+                            className="px-4 py-3 text-sm"
                             onClick={() => {
                               void leaveSeat();
                             }}
                             type="button"
+                            variant="secondary"
                           >
                             离座
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </article>
@@ -370,7 +428,7 @@ export default function App() {
             </section>
 
             <aside className="grid gap-6">
-              <section className="rounded-[28px] border border-ink-700/10 bg-[rgba(255,250,241,0.86)] p-5 shadow-paper">
+              <section className="rounded-[28px] border border-ink-700/10 bg-[rgba(255,250,241,0.5)] p-5 shadow-paper">
                 <p className="m-0 text-xs uppercase tracking-[0.18em] text-ink-500">成员</p>
                 <h2 className="m-0 font-display text-2xl text-ink-900">房内玩家</h2>
                 <div className="mt-4 grid gap-3">
@@ -385,15 +443,16 @@ export default function App() {
                           <div>{member.seatId === null ? '观战中' : `已占据 ${member.seatId + 1}P`}</div>
                         </div>
                         {isHost && member.id !== room.selfMemberId && (
-                          <button
-                            className="rounded-full bg-white/75 px-3 py-1 text-xs text-ink-900"
+                          <Button
+                            className="px-3 py-1 text-xs"
                             onClick={() => {
                               void kickMember(member.id);
                             }}
                             type="button"
+                            variant="secondary"
                           >
                             踢出
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </article>
@@ -401,7 +460,7 @@ export default function App() {
                 </div>
               </section>
 
-              <section className="rounded-[28px] border border-ink-700/10 bg-[rgba(255,250,241,0.86)] p-5 shadow-paper">
+              <section className="rounded-[28px] border border-ink-700/10 bg-[rgba(255,250,241,0.5)] p-5 shadow-paper">
                 <p className="m-0 text-xs uppercase tracking-[0.18em] text-ink-500">房主控制</p>
                 <h2 className="m-0 font-display text-2xl text-ink-900">开局设置</h2>
                 <input
@@ -411,8 +470,8 @@ export default function App() {
                   placeholder={room.hasPassword ? '已设密码，输入新密码覆盖' : '输入房间密码，可留空'}
                   value={roomPasswordDraft}
                 />
-                <button
-                  className="mt-3 w-full rounded-[14px] bg-[rgba(111,78,57,0.12)] px-4 py-3 text-sm text-ink-900 disabled:opacity-45"
+                <Button
+                  className="mt-3 w-full px-4 py-3 text-sm"
                   disabled={!isHost}
                   onClick={() => {
                     void updateRoomSettings({
@@ -420,19 +479,21 @@ export default function App() {
                     });
                   }}
                   type="button"
+                  variant="secondary"
                 >
                   保存房间密码
-                </button>
-                <button
-                  className="mt-3 w-full rounded-[16px] bg-[linear-gradient(180deg,#6f4e39,#513828)] px-4 py-3 text-sm text-ink-50 disabled:opacity-45"
+                </Button>
+                <Button
+                  className="mt-3 w-full px-4 py-3 text-sm"
                   disabled={!isHost}
                   onClick={() => {
                     void startGame();
                   }}
                   type="button"
+                  variant="primary"
                 >
                   开始游戏
-                </button>
+                </Button>
               </section>
             </aside>
           </section>
@@ -440,9 +501,9 @@ export default function App() {
           {error && (
             <div className="rounded-[22px] border border-[rgba(139,75,60,0.2)] bg-[rgba(255,243,239,0.9)] px-5 py-4 text-sm text-[#704836]">
               <div>{error}</div>
-              <button className="mt-3 rounded-full bg-white/70 px-3 py-1 text-xs" onClick={() => setError(null)} type="button">
+              <Button className="mt-3 px-3 py-1 text-xs" onClick={() => setError(null)} type="button" variant="secondary">
                 关闭
-              </button>
+              </Button>
             </div>
           )}
         </section>
@@ -462,14 +523,15 @@ export default function App() {
             <span className={styles.seatLabel}>观战座位</span>
             <div className={styles.seatList}>
               {SEATS.map((seat) => (
-                <button
+                <Button
                   key={seat}
                   className={String(seat) === viewSeatId ? styles.seatButtonActive : styles.seatButton}
                   onClick={() => setViewSeatId(String(seat))}
                   type="button"
+                  variant={String(seat) === viewSeatId ? 'active' : 'secondary'}
                 >
                   {seat + 1}P
-                </button>
+                </Button>
               ))}
             </div>
             <p className={styles.seatHint}>你控制的座位以服务端房间快照为准，切换只改变观察视角。</p>
@@ -484,13 +546,14 @@ export default function App() {
             <span className="rounded-full bg-[rgba(255,251,241,0.88)] px-4 py-2 text-sm text-ink-700 shadow-paper">
               连接 {formatStatus(connectionState)}
             </span>
-            <button
-              className="rounded-full bg-[rgba(255,251,241,0.88)] px-4 py-2 text-sm text-ink-900 shadow-paper"
+            <Button
+              className="px-4 py-2 text-sm shadow-paper"
               onClick={() => leaveRoom()}
               type="button"
+              variant="secondary"
             >
               退出房间
-            </button>
+            </Button>
           </div>
 
           <DamaqiBoard
@@ -513,9 +576,9 @@ export default function App() {
           {error && (
             <div className="absolute bottom-4 left-4 z-40 max-w-md rounded-[22px] border border-[rgba(139,75,60,0.2)] bg-[rgba(255,243,239,0.95)] px-5 py-4 text-sm text-[#704836] shadow-paper">
               <div>{error}</div>
-              <button className="mt-3 rounded-full bg-white/70 px-3 py-1 text-xs" onClick={() => setError(null)} type="button">
+              <Button className="mt-3 px-3 py-1 text-xs" onClick={() => setError(null)} type="button" variant="secondary">
                 关闭
-              </button>
+              </Button>
             </div>
           )}
         </section>

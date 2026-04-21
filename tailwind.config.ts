@@ -31,8 +31,8 @@ export default {
         seal: '0 10px 30px rgba(108, 46, 34, 0.24)'
       },
       fontFamily: {
-        display: ['STKaiti', 'KaiTi', 'serif'],
-        body: ['"Noto Serif SC"', '"Songti SC"', 'serif']
+        display: ['"FZCJLJT"', '"Noto Serif SC"', '"Songti SC"', 'serif'],
+        body: ['"FZCJLJT"', '"Noto Serif SC"', '"Songti SC"', 'serif']
       }
     }
   },

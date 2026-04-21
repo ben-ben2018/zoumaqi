@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 
+import { Button } from './Button';
 import styles from './DamaqiBoard.module.css';
 import { BoardCanvas } from './BoardCanvas';
 import { DicePanel } from './DicePanel';
@@ -255,23 +256,25 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
           />
 
           <div className={styles.quickActions}>
-            <button
+            <Button
               className={clsx(styles.quickButton, G.turnStage === TurnStage.CARD && styles.quickButtonActive)}
               disabled={areActionButtonsDisabled || G.turnStage !== TurnStage.CARD}
               onClick={() => onAction({ type: 'finishCardStage' })}
               type="button"
+              variant={G.turnStage === TurnStage.CARD ? 'active' : 'secondary'}
             >
               结束出牌
-            </button>
-            <button
+            </Button>
+            <Button
               className={clsx(styles.quickButton, G.turnStage === TurnStage.SKILL && styles.quickButtonActive)}
               disabled={areActionButtonsDisabled || G.turnStage !== TurnStage.SKILL}
               onClick={() => onAction({ type: 'finishSkillStage' })}
               type="button"
+              variant={G.turnStage === TurnStage.SKILL ? 'active' : 'secondary'}
             >
               跳过技能
-            </button>
-            <button
+            </Button>
+            <Button
               className={styles.skillButton}
               disabled={
                 areActionButtonsDisabled ||
@@ -280,11 +283,12 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
               }
               onClick={handleUseActiveSkill}
               type="button"
+              variant="primary"
             >
               {myPlayer.activeSkillCooldown > 0
                 ? `技能冷却 ${myPlayer.activeSkillCooldown}`
                 : `发动${getSectLabel(myPlayer.sect)}主动`}
-            </button>
+            </Button>
           </div>
         </aside>
 
@@ -352,7 +356,7 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
                       <h4 className={styles.discardName}>{card.name}</h4>
                       <p className={styles.discardDescription}>{card.description}</p>
                     </div>
-                    <button
+                    <Button
                       className={styles.discardButton}
                       onClick={() =>
                         onAction({
@@ -361,9 +365,10 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
                         })
                       }
                       type="button"
+                      variant="primary"
                     >
                       弃置这张牌
-                    </button>
+                    </Button>
                   </article>
                 ))}
               </div>
@@ -385,20 +390,21 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
 
             <div className={styles.stepList}>
               {[3, 4, 5, 6].map((step) => (
-                <button
+                <Button
                   key={step}
                   className={styles.stepButton}
                   onClick={() => handleLingyunChoice(step)}
                   type="button"
+                  variant="active"
                 >
                   {step} 步
-                </button>
+                </Button>
               ))}
             </div>
 
-            <button className={styles.cancelButton} onClick={() => setPendingCardAction(null)} type="button">
+            <Button className={styles.cancelButton} onClick={() => setPendingCardAction(null)} type="button" variant="secondary">
               取消
-            </button>
+            </Button>
           </section>
         </div>
       )}
@@ -425,17 +431,22 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
                         {targetPlayer.handCards.length}
                       </p>
                     </div>
-                    <button className={styles.discardButton} onClick={() => handleTargetChoice(candidateId)} type="button">
+                    <Button
+                      className={styles.discardButton}
+                      onClick={() => handleTargetChoice(candidateId)}
+                      type="button"
+                      variant="primary"
+                    >
                       选择该目标
-                    </button>
+                    </Button>
                   </article>
                 );
               })}
             </div>
 
-            <button className={styles.cancelButton} onClick={() => setPendingTargetAction(null)} type="button">
+            <Button className={styles.cancelButton} onClick={() => setPendingTargetAction(null)} type="button" variant="secondary">
               取消
-            </button>
+            </Button>
           </section>
         </div>
       )}

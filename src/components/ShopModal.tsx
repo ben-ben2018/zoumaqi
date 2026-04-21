@@ -1,3 +1,4 @@
+import { Button } from './Button';
 import type { CardData } from '../types';
 
 type ShopModalProps = {
@@ -18,13 +19,14 @@ export function ShopModal({ cards, playerGold, onBuy, onClose }: ShopModalProps)
           </div>
           <div className="flex items-center gap-3">
             <span className="rounded-full bg-ink-100 px-4 py-2 text-sm text-ink-700">当前棋珍：{playerGold}</span>
-            <button
-              className="rounded-full bg-[rgba(111,78,57,0.1)] px-4 py-2 text-sm text-ink-900"
+            <Button
+              className="px-4 py-2 text-sm"
               onClick={onClose}
               type="button"
+              variant="secondary"
             >
               结束采购
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -41,14 +43,15 @@ export function ShopModal({ cards, playerGold, onBuy, onClose }: ShopModalProps)
                 </span>
               </div>
               <p className="m-0 flex-1 text-sm leading-7 text-ink-700">{card.description}</p>
-              <button
-                className="mt-4 rounded-[14px] bg-[linear-gradient(180deg,#6f4e39,#513828)] px-4 py-3 text-sm text-ink-50 disabled:cursor-not-allowed disabled:opacity-45"
+              <Button
+                className="mt-4 px-4 py-3 text-sm"
                 disabled={playerGold < card.price}
                 onClick={() => onBuy(card.id)}
                 type="button"
+                variant="primary"
               >
                 购买
-              </button>
+              </Button>
             </article>
           ))}
         </div>

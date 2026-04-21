@@ -2,10 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'FZCJLJT';
+  src: url('./assets/fzcjljt.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   color: #2f2619;
-  background-color: #f1e8d8;
-  font-family: 'Noto Serif SC', 'Songti SC', serif;
+  background-color: #0f1f2f;
+  font-family: 'FZCJLJT', 'Noto Serif SC', 'Songti SC', serif;
   line-height: 1.5;
   font-weight: 400;
   text-rendering: optimizeLegibility;
@@ -13,8 +21,12 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+  border-radius: 0 !important;
+  font-family: 'FZCJLJT' !important;
 }
 
 html,
@@ -27,6 +39,9 @@ body,
 
 body {
   min-width: 320px;
+  background:
+    linear-gradient(180deg, rgba(7, 17, 29, 0.46), rgba(7, 17, 29, 0.58)),
+    url('./assets/global-bg.jpg') center / cover no-repeat fixed;
 }
 
 button,

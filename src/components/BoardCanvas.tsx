@@ -151,7 +151,7 @@ export function BoardCanvas({ tiles, players, currentPlayerId }: BoardCanvasProp
     context.stroke();
 
     context.lineWidth = 2;
-    context.font = '10px "KaiTi", serif';
+    context.font = '10px "FZCJLJT"';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
 
@@ -190,7 +190,7 @@ export function BoardCanvas({ tiles, players, currentPlayerId }: BoardCanvasProp
       context.fill();
 
       context.fillStyle = '#f7f0e4';
-      context.font = '8px sans-serif';
+      context.font = '8px "FZCJLJT"';
       context.fillText(player.name.replace('P', ''), tile.x + offsetX, tile.y + offsetY + 1);
     });
   }, [canvasSize.height, canvasSize.width, tiles, players, currentPlayerId]);

@@ -2,10 +2,7 @@
   position: relative;
   height: 100dvh;
   overflow: hidden;
-  background:
-    radial-gradient(circle at top left, rgba(186, 165, 117, 0.24), transparent 34%),
-    radial-gradient(circle at bottom right, rgba(88, 117, 120, 0.2), transparent 28%),
-    linear-gradient(180deg, rgba(250, 245, 234, 0.98), rgba(234, 225, 206, 0.94));
+  background: transparent;
 }
 
 .hero {
@@ -55,26 +52,11 @@
 .seatButtonActive {
   min-width: 60px;
   padding: 8px 14px;
-  border: 1px solid rgba(74, 57, 34, 0.14);
-  border-radius: 999px;
-  color: #403122;
   font-size: 0.88rem;
-  transition: transform 180ms ease, background-color 180ms ease, color 180ms ease;
-}
-
-.seatButton {
-  background: rgba(255, 251, 243, 0.72);
-}
-
-.seatButton:hover {
-  transform: translateY(-1px);
-  background: rgba(245, 235, 214, 0.9);
 }
 
 .seatButtonActive {
-  background: linear-gradient(180deg, #704b34, #503622);
-  color: #f8edda;
-  box-shadow: 0 14px 28px rgba(87, 52, 28, 0.18);
+  font-weight: 600;
 }
 
 .seatHint {

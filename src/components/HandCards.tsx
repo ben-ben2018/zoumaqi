@@ -1,3 +1,4 @@
+import { Button } from './Button';
 import type { CardData } from '../types';
 
 type HandCardsProps = {
@@ -35,14 +36,15 @@ export function HandCards({ cards, disabled, onUseCard }: HandCardsProps) {
 
             <p className="m-0 flex-1 text-[13px] leading-6 text-ink-700">{card.description}</p>
 
-            <button
-              className="mt-3 rounded-[12px] bg-[linear-gradient(180deg,#6f4e39,#513828)] px-3 py-2.5 text-[13px] text-ink-50 disabled:cursor-not-allowed disabled:opacity-45"
+            <Button
+              className="mt-3 px-3 py-2.5 text-[13px]"
               disabled={disabled || card.isPassive}
               onClick={() => onUseCard(card.id)}
               type="button"
+              variant="primary"
             >
               {card.isPassive ? '持续生效' : '打出卡牌'}
-            </button>
+            </Button>
           </article>
         );
       })}

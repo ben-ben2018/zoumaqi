@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 
+import { Button } from './Button';
 import styles from './DicePanel.module.css';
 import { TurnStage } from '../types';
 
@@ -258,17 +259,18 @@ export function DicePanel({ stage, lastRoll, pendingRoll, disabled, onRoll }: Di
           </div>
         </div>
 
-        <button
+        <Button
           className={clsx(
-            'rounded-[14px] bg-[linear-gradient(180deg,#6f4e39,#513828)] px-3 py-2.5 text-sm text-ink-50 disabled:cursor-not-allowed disabled:opacity-45',
+            'px-3 py-2.5 text-sm',
             styles.actionButton
           )}
           disabled={!canRoll}
           onClick={handleRoll}
           type="button"
+          variant="primary"
         >
           {isRolling ? '骰影翻飞中…' : '掷骰并行动'}
-        </button>
+        </Button>
       </div>
     </section>
   );

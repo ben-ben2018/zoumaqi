@@ -78,7 +78,7 @@
 .sectionTitle {
   margin: 0;
   color: #312619;
-  font-family: 'STKaiti', 'KaiTi', serif;
+  font-family: 'FZCJLJT', 'Noto Serif SC', 'Songti SC', serif;
   font-size: clamp(1.15rem, 1.5vw, 1.45rem);
 }
 
@@ -124,7 +124,7 @@
 .noticeTitle {
   margin: 0;
   color: #2f2618;
-  font-family: 'STKaiti', 'KaiTi', serif;
+  font-family: 'FZCJLJT', 'Noto Serif SC', 'Songti SC', serif;
   font-size: 1.12rem;
 }
 
@@ -163,23 +163,8 @@
 .skillButton {
   width: 100%;
   padding: 10px 12px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(108, 79, 63, 0.14), rgba(86, 65, 42, 0.1));
-  color: #382c1f;
   font-size: 0.85rem;
   line-height: 1.25;
-  transition: transform 180ms ease, opacity 180ms ease;
-}
-
-.quickButton:hover:not(:disabled),
-.skillButton:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-.quickButton:disabled,
-.skillButton:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 
 .quickButtonActive,
@@ -189,11 +174,6 @@
 
 .skillButton {
   grid-column: 1 / -1;
-}
-
-.skillButton {
-  background: linear-gradient(180deg, #6f4e39, #513828);
-  color: #f8ecd8;
 }
 
 .playerDock {
@@ -250,7 +230,7 @@
 .choiceTitle {
   margin: 0 0 10px;
   color: #2f2618;
-  font-family: 'STKaiti', 'KaiTi', serif;
+  font-family: 'FZCJLJT', 'Noto Serif SC', 'Songti SC', serif;
   font-size: 1.8rem;
 }
 
@@ -270,24 +250,8 @@
 .stepButton,
 .cancelButton {
   padding: 12px 14px;
-  border-radius: 16px;
-  color: #3a2d20;
-  transition: transform 180ms ease, opacity 180ms ease;
-}
-
-.stepButton {
-  background: linear-gradient(180deg, rgba(108, 79, 63, 0.14), rgba(86, 65, 42, 0.1));
-}
-
-.cancelButton {
   width: 100%;
   margin-top: 14px;
-  background: rgba(111, 78, 57, 0.08);
-}
-
-.stepButton:hover,
-.cancelButton:hover {
-  transform: translateY(-1px);
 }
 
 .discardList {
@@ -318,7 +282,7 @@
 .discardName {
   margin: 0;
   color: #2f2618;
-  font-family: 'STKaiti', 'KaiTi', serif;
+  font-family: 'FZCJLJT', 'Noto Serif SC', 'Songti SC', serif;
   font-size: 1.35rem;
 }
 
@@ -330,14 +294,6 @@
 
 .discardButton {
   padding: 12px 14px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, #6f4e39, #513828);
-  color: #f8ecd8;
-  transition: transform 180ms ease;
-}
-
-.discardButton:hover {
-  transform: translateY(-1px);
 }
 
 .lockNotice {

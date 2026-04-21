@@ -45,7 +45,7 @@ export class BoardScene extends Phaser.Scene {
       this.tileLayer.strokeRect(point.x - tileSize / 2, point.y - tileSize / 2, tileSize, tileSize);
       this.add.text(point.x, point.y, String(index + 1), {
         color: index === TOTAL_TILES - 1 ? '#f5ead7' : '#3d2f22',
-        fontFamily: 'KaiTi, serif',
+        fontFamily: 'FZCJLJT',
         fontSize: '10px'
       }).setOrigin(0.5);
     }
