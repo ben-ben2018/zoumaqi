@@ -74,7 +74,6 @@ export function DicePanel({ stage, lastRoll, pendingRoll, disabled, onRoll }: Di
 
   const canRoll = stage === TurnStage.ROLL && !disabled && !isRolling;
   const actionSteps = pendingRoll ?? lastRoll ?? 0;
-  const panelLabel = isRolling ? '骰盅摇转中' : lastRoll === null ? '静候掷定' : `落定 ${lastRoll} 点`;
   const diceAriaLabel = isRolling ? '骰子滚动中' : lastRoll === null ? '尚未掷骰' : `最近点数 ${lastRoll}`;
 
   useEffect(() => {
@@ -212,65 +211,34 @@ export function DicePanel({ stage, lastRoll, pendingRoll, disabled, onRoll }: Di
 
   return (
     <section className={clsx('rounded-[18px] border border-ink-700/10 bg-[rgba(255,250,241,0.82)] p-4', styles.panel)}>
-      <p className="mb-1.5 text-[11px] uppercase tracking-[0.16em] text-ink-500">骰子台</p>
-      <div className="grid gap-2.5">
-        <div
-          className={clsx(
-            'rounded-[18px] bg-[radial-gradient(circle_at_top,_rgba(113,135,120,0.22),_rgba(255,249,239,0.88))] p-4 text-center shadow-paper',
-            styles.display
-          )}
-        >
-          <p className="m-0 text-[13px] text-ink-700">最近点数</p>
-          <div className={styles.diceStage}>
-            <div className={clsx(styles.diceAura, isRolling && styles.diceAuraRolling, isSettling && styles.diceAuraSettling)} />
-            <div
-              aria-label={diceAriaLabel}
-              className={clsx(styles.diceFrame, isRolling && styles.diceFrameRolling, isSettling && styles.diceFrameSettling)}
-              data-face={displayValue}
-              data-rolling={isRolling ? 'true' : 'false'}
-              data-testid="dice-face"
-              role="img"
-            >
-              <div className={clsx(styles.face, displayValue === 0 && styles.faceIdle)}>
-                {PIP_ORDER.map((position) => {
-                  const isActive = displayValue !== 0 && FACE_PIPS[displayValue as Exclude<FaceValue, 0>].includes(position);
+      <div className={clsx(styles.diceAura, isRolling && styles.diceAuraRolling, isSettling && styles.diceAuraSettling)} />
+      <div
+        aria-label={diceAriaLabel}
+        className={clsx(styles.diceFrame, isRolling && styles.diceFrameRolling, isSettling && styles.diceFrameSettling)}
+        data-face={displayValue}
+        data-rolling={isRolling ? 'true' : 'false'}
+        data-testid="dice-face"
+        role="img"
+        onClick={canRoll ? handleRoll : () => { }}
+      >
+        <div className={clsx(styles.face, displayValue === 0 && styles.faceIdle)}>
+          {PIP_ORDER.map((position) => {
+            const isActive = displayValue !== 0 && FACE_PIPS[displayValue as Exclude<FaceValue, 0>].includes(position);
 
-                  return (
-                    <span
-                      aria-hidden="true"
-                      className={clsx(styles.pip, styles[position], isActive && styles.pipActive)}
-                      key={position}
-                    />
-                  );
-                })}
-                {displayValue === 0 && (
-                  <span aria-hidden="true" className={styles.idleGlyph}>
-                    未掷
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className={styles.metaBlock}>
-            <p aria-live="polite" className={styles.panelLabel}>
-              {panelLabel}
-            </p>
-            <p className={styles.stepsText}>本次行动：{actionSteps} 格</p>
-          </div>
+            return (
+              <span
+                aria-hidden="true"
+                className={clsx(styles.pip, styles[position], isActive && styles.pipActive)}
+                key={position}
+              />
+            );
+          })}
+          {displayValue === 0 && (
+            <span aria-hidden="true" className={styles.idleGlyph}>
+              未掷
+            </span>
+          )}
         </div>
-
-        <Button
-          className={clsx(
-            'px-3 py-2.5 text-sm',
-            styles.actionButton
-          )}
-          disabled={!canRoll}
-          onClick={handleRoll}
-          type="button"
-          variant="primary"
-        >
-          {isRolling ? '骰影翻飞中…' : '掷骰并行动'}
-        </Button>
       </div>
     </section>
   );

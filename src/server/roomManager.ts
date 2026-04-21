@@ -32,6 +32,17 @@ type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServe
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
 const DEFAULT_ROOM_SECTS: Sect[] = [Sect.QINGXI, Sect.LIYUAN, Sect.TIANQUAN, Sect.GUYUN];
+const AVAILABLE_ROOM_SECTS: Sect[] = [
+  Sect.QINGXI,
+  Sect.LIYUAN,
+  Sect.TIANQUAN,
+  Sect.GUYUN,
+  Sect.SANGENGTIAN,
+  Sect.KUANGLAN,
+  Sect.ZUIHUAYIN,
+  Sect.MOSHANDAO,
+  Sect.JIULIUMEN
+];
 
 interface RoomMember {
   id: string;
@@ -44,7 +55,7 @@ interface RoomMember {
 interface RoomSeatState {
   id: SeatID;
   memberId: string | null;
-  sect: Sect;
+  sect: Sect | null;
   isBot: boolean;
 }
 
@@ -78,7 +89,7 @@ function createDefaultSeats(): RoomSeatState[] {
   return [0, 1, 2, 3].map((id) => ({
     id: id as SeatID,
     memberId: null,
-    sect: DEFAULT_ROOM_SECTS[id] ?? Sect.QINGXI,
+    sect: null,
     isBot: true
   }));
 }
@@ -246,6 +257,7 @@ export class RoomManager {
 
     const now = Date.now();
     const memberId = randomUUID();
+    const shouldAssignHost = room.members.size === 0;
     room.members.set(memberId, {
       id: memberId,
       socketId: socket.id,
@@ -253,6 +265,9 @@ export class RoomManager {
       seatId: null,
       joinedAt: now
     });
+    if (shouldAssignHost) {
+      room.hostMemberId = memberId;
+    }
     room.updatedAt = now;
     room.emptySince = null;
 
@@ -311,6 +326,7 @@ export class RoomManager {
 
     seat.memberId = member.id;
     seat.isBot = false;
+    seat.sect = seat.sect ?? this.getDefaultHumanSect(payload.seatId);
     member.seatId = payload.seatId;
     room.updatedAt = Date.now();
 
@@ -477,7 +493,11 @@ export class RoomManager {
         const memberForSeat = seat.memberId ? room.members.get(seat.memberId) : null;
         return memberForSeat?.name ?? `AI ${seat.id + 1}P`;
       }),
-      sects: room.seats.map((seat) => seat.sect),
+      sects: room.seats.map((seat) => {
+        const resolvedSect = seat.sect ?? this.getRandomSect();
+        seat.sect = resolvedSect;
+        return resolvedSect;
+      }),
       botPlayerIds: room.seats.filter((seat) => !seat.memberId).map((seat) => toPlayerId(seat.id))
     };
 
@@ -607,6 +627,7 @@ export class RoomManager {
   private releaseSeat(room: RoomState, seatId: SeatID): void {
     const seat = room.seats[seatId];
     seat.memberId = null;
+    seat.sect = null;
     seat.isBot = true;
   }
 
@@ -695,6 +716,15 @@ export class RoomManager {
   private pickNextHostMemberId(room: RoomState): string {
     const [nextHost] = Array.from(room.members.values()).sort((left, right) => left.joinedAt - right.joinedAt);
     return nextHost?.id ?? room.hostMemberId;
+  }
+
+  private getDefaultHumanSect(seatId: SeatID): Sect {
+    return DEFAULT_ROOM_SECTS[seatId] ?? DEFAULT_ROOM_SECTS[0];
+  }
+
+  private getRandomSect(): Sect {
+    const index = Math.floor(Math.random() * AVAILABLE_ROOM_SECTS.length);
+    return AVAILABLE_ROOM_SECTS[index] ?? AVAILABLE_ROOM_SECTS[0];
   }
 
   private generateRoomCode(): string {

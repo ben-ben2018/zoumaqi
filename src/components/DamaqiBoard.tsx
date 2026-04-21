@@ -6,18 +6,17 @@ import styles from './DamaqiBoard.module.css';
 import { BoardCanvas } from './BoardCanvas';
 import { DicePanel } from './DicePanel';
 import { HandCards } from './HandCards';
-import { PlayerPanel } from './PlayerPanel';
 import { ShopModal } from './ShopModal';
-import { TurnIndicator } from './TurnIndicator';
 import { getHandLimit, getSectLabel, getTeamLabel } from '../game/helpers';
 import type { GameActionRequest, MatchSnapshot } from '../multiplayer/protocol';
-import { Sect, SkillTarget, TurnStage, type CardData, type PlayerData } from '../types';
+import { PlayerStatus, PlayerTeam, Sect, SkillTarget, TurnStage, type CardData, type PlayerData } from '../types';
 
 type DamaqiBoardProps = {
   match: MatchSnapshot;
   controllablePlayerID?: string | null;
   viewPlayerID?: string | null;
   onAction: (action: GameActionRequest) => void;
+  onViewPlayerChange?: (playerID: string) => void;
 };
 
 type PendingCardAction = {
@@ -74,7 +73,17 @@ function getSkillCandidateIds(currentPlayerId: string, players: Record<string, P
     .map((candidate) => candidate.id);
 }
 
-export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onAction }: DamaqiBoardProps) {
+function formatPlayerStatus(player: PlayerData): string {
+  if (player.status === PlayerStatus.SKIP_TURN) {
+    return '跳过';
+  }
+  if (player.status === PlayerStatus.FROZEN) {
+    return '冻结';
+  }
+  return '正常';
+}
+
+export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onAction, onViewPlayerChange }: DamaqiBoardProps) {
   const { G, ctx } = match;
   const currentPlayer = G.players[ctx.currentPlayer];
   const actualHumanPlayerId = controllablePlayerID ?? null;
@@ -82,6 +91,7 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
   const myPlayer = G.players[effectivePlayerId] ?? currentPlayer;
   const [pendingCardAction, setPendingCardAction] = useState<PendingCardAction>(null);
   const [pendingTargetAction, setPendingTargetAction] = useState<PendingTargetAction>(null);
+  const [isBroadcastOpen, setIsBroadcastOpen] = useState(false);
 
   const activePendingDiscard = G.pendingDiscards[0] ?? null;
   const pendingDiscardPlayer = activePendingDiscard ? G.players[activePendingDiscard.playerId] : null;
@@ -205,27 +215,41 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
       </section>
 
       <div className={styles.hudLayer}>
-        <div className={styles.turnDock}>
-          <TurnIndicator
-            currentPlayerId={ctx.currentPlayer}
-            players={Object.values(G.players)}
-            stage={G.turnStage}
-            totalTiles={G.board.totalTiles}
-          />
-        </div>
+        <div className={styles.broadcastDock}>
+          <Button
+            className={styles.broadcastButton}
+            onClick={() => setIsBroadcastOpen((current) => !current)}
+            type="button"
+            variant={isBroadcastOpen ? 'active' : 'secondary'}
+          >
+            棋局播报
+          </Button>
 
-        <div className={styles.logPanel}>
-          <div className={styles.logPanelInner}>
-            <p className={styles.sectionKicker}>棋局播报</p>
-            <p className={styles.turnMessage}>{G.turnMessage}</p>
-            <div className={styles.logList}>
-              {G.actionLog.map((entry) => (
-                <p key={entry} className={styles.logEntry}>
-                  {entry}
-                </p>
-              ))}
+          {isBroadcastOpen && (
+            <div className={styles.logPanel}>
+              <div className={styles.logPanelInner}>
+                <div className={styles.logPanelHeader}>
+                  <p className={styles.sectionKicker}>棋局播报</p>
+                  <Button
+                    className={styles.logCloseButton}
+                    onClick={() => setIsBroadcastOpen(false)}
+                    type="button"
+                    variant="secondary"
+                  >
+                    收起
+                  </Button>
+                </div>
+                <p className={styles.turnMessage}>{G.turnMessage}</p>
+                <div className={styles.logList}>
+                  {G.actionLog.map((entry) => (
+                    <p key={entry} className={styles.logEntry}>
+                      {entry}
+                    </p>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <aside className={styles.sideColumn}>
@@ -293,16 +317,70 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
         </aside>
 
         <div className={styles.playerDock}>
-          <div className={styles.playerGrid}>
-            {Object.values(G.players).map((player) => (
-              <PlayerPanel
-                key={player.id}
-                player={player}
-                isCurrent={player.id === ctx.currentPlayer}
-                isSelf={player.id === effectivePlayerId}
-                totalTiles={G.board.totalTiles}
-              />
-            ))}
+          <div className={styles.playerTableWrap}>
+            <table className={styles.playerTable}>
+              <thead>
+                <tr>
+                  <th>玩家</th>
+                  <th>门派</th>
+                  <th>位置</th>
+                  <th>棋珍</th>
+                  <th>手牌</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.values(G.players).map((player) => {
+                  const buffCount = Object.keys(player.buffs).length;
+                  const rowState = [
+                    buffCount > 0 ? `Buff ${buffCount}` : null
+                  ]
+                    .filter(Boolean)
+                    .join(' · ');
+
+                  return (
+                    <tr
+                      key={player.id}
+                      className={clsx(
+                        styles.playerRow,
+                        onViewPlayerChange && styles.playerRowClickable,
+                        player.id === ctx.currentPlayer && styles.playerRowCurrent,
+                        player.id === effectivePlayerId && styles.playerRowSelf
+                      )}
+                      onClick={() => onViewPlayerChange?.(player.id)}
+                    >
+                      <td>
+                        <div className={styles.playerCellMain}>
+                          <span className={styles.playerName}>
+                            <span
+                              className={clsx(
+                                styles.playerSeatBadge,
+                                player.team === PlayerTeam.RED ? styles.playerSeatBadgeRed : styles.playerSeatBadgeBlue
+                              )}
+                            >
+                              {Number(player.id) + 1}
+                            </span>
+                            <span className={styles.playerNameText}>
+                              {player.name} {player.isBot ? '(AI)' : ''}
+                            </span>
+                          </span>
+                          <span className={styles.playerMeta}>
+                            {rowState || ' '}
+                          </span>
+                        </div>
+                      </td>
+                      <td>{getSectLabel(player.sect)}</td>
+                      <td>
+                        {player.position + 1}/{G.board.totalTiles}
+                      </td>
+                      <td>{player.gold}</td>
+                      <td>{player.handCards.length}</td>
+                      <td>{formatPlayerStatus(player)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
 

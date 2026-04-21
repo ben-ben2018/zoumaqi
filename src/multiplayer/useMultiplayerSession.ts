@@ -17,6 +17,7 @@ import {
 import { createMultiplayerSocket } from './socket';
 
 type MultiplayerSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+type ToastState = { id: number; message: string } | null;
 
 const PLAYER_NAME_STORAGE_KEY = 'damaqi-player-name';
 
@@ -26,11 +27,25 @@ function readStoredPlayerName(): string {
 
 export function useMultiplayerSession() {
   const socketRef = useRef<MultiplayerSocket | null>(null);
+  const toastIdRef = useRef(0);
   const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const [rooms, setRooms] = useState<LobbyRoomSummary[]>([]);
   const [room, setRoom] = useState<RoomSnapshot | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setErrorState] = useState<ToastState>(null);
   const [playerName, setPlayerNameState] = useState<string>(() => readStoredPlayerName());
+
+  const setError = (message: string | null) => {
+    if (!message) {
+      setErrorState(null);
+      return;
+    }
+
+    toastIdRef.current += 1;
+    setErrorState({
+      id: toastIdRef.current,
+      message
+    });
+  };
 
   useEffect(() => {
     const socket = createMultiplayerSocket();

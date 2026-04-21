@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ROOM_IDLE_TIMEOUT_MS } from '../multiplayer/protocol';
 import { ServerGameSession } from '../server/gameSession';
 import { RoomManager } from '../server/roomManager';
-import { TurnStage } from '../types';
+import { Sect, TurnStage } from '../types';
 
 type FakeSocket = {
   id: string;
@@ -150,6 +150,70 @@ describe('RoomManager', () => {
     now += 1;
     managerInternal.cleanupIdleRooms();
     expect(managerInternal.rooms.has(roomCode)).toBe(false);
+  });
+
+  it('assigns the first rejoining member as host after a room becomes empty', () => {
+    const { io, managerInternal } = createRoomManagerHarness();
+    const hostSocket = createFakeSocket('socket-host');
+    const rejoinSocket = createFakeSocket('socket-rejoin');
+    io.sockets.sockets.set(hostSocket.id, hostSocket);
+    io.sockets.sockets.set(rejoinSocket.id, rejoinSocket);
+
+    let now = 20_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+
+    const createResult = managerInternal.handleCreateRoom(hostSocket, {
+      name: 'SoloHost'
+    });
+    const roomCode = createResult.roomCode as string;
+
+    now = 21_000;
+    managerInternal.leaveCurrentRoom(hostSocket, false);
+
+    now = 22_000;
+    managerInternal.handleJoinRoom(rejoinSocket, {
+      roomCode,
+      name: 'NewHost'
+    });
+
+    const room = managerInternal.rooms.get(roomCode);
+    const snapshot = managerInternal.serializeRoom(room, rejoinSocket.data.memberId);
+
+    expect(room.hostMemberId).toBe(rejoinSocket.data.memberId);
+    expect(room.emptySince).toBeNull();
+    expect(snapshot.members).toHaveLength(1);
+    expect(snapshot.members[0]).toMatchObject({
+      id: rejoinSocket.data.memberId,
+      name: 'NewHost',
+      isHost: true
+    });
+  });
+
+  it('keeps empty seats without sects until start, then assigns random sects to AI seats', () => {
+    const { io, managerInternal } = createRoomManagerHarness();
+    const hostSocket = createFakeSocket('socket-host');
+    io.sockets.sockets.set(hostSocket.id, hostSocket);
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.6);
+
+    const createResult = managerInternal.handleCreateRoom(hostSocket, {
+      name: 'Host'
+    });
+    const roomCode = createResult.roomCode as string;
+    const room = managerInternal.rooms.get(roomCode);
+
+    expect(room.seats.map((seat: { sect: Sect | null }) => seat.sect)).toEqual([null, null, null, null]);
+
+    managerInternal.handleClaimSeat(hostSocket, { seatId: 0 });
+    expect(room.seats[0].sect).toBe(Sect.QINGXI);
+    expect(room.seats.slice(1).map((seat: { sect: Sect | null }) => seat.sect)).toEqual([null, null, null]);
+
+    managerInternal.handleStartGame(hostSocket);
+
+    expect(room.seats[0].sect).toBe(Sect.QINGXI);
+    expect(room.seats[1].sect).toBe(Sect.KUANGLAN);
+    expect(room.seats[2].sect).toBe(Sect.KUANGLAN);
+    expect(room.seats[3].sect).toBe(Sect.KUANGLAN);
   });
 });
 

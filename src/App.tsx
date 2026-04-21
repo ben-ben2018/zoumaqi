@@ -3,8 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import styles from './App.module.css';
 import { Button } from './components/Button';
 import { DamaqiBoard } from './components/DamaqiBoard';
+import { GlobalToast } from './components/GlobalToast';
 import { getSectLabel, getTeamLabel } from './game/helpers';
-import { type SeatID } from './multiplayer/protocol';
 import { useMultiplayerSession } from './multiplayer/useMultiplayerSession';
 import { Sect } from './types';
 
@@ -19,8 +19,6 @@ const ALL_SECTS: Sect[] = [
   Sect.MOSHANDAO,
   Sect.JIULIUMEN
 ];
-
-const SEATS: SeatID[] = [0, 1, 2, 3];
 
 function formatStatus(status: string): string {
   if (status === 'connected') {
@@ -276,16 +274,6 @@ export default function App() {
             </div>
           </section>
         </section>
-
-        {error && (
-          <div className="rounded-[22px] border border-[rgba(139,75,60,0.2)] bg-[rgba(255,243,239,0.9)] px-5 py-4 text-sm text-[#704836]">
-            <div>{error}</div>
-            <Button className="mt-3 px-3 py-1 text-xs" onClick={() => setError(null)} type="button" variant="secondary">
-              关闭
-            </Button>
-          </div>
-        )}
-
         {needsPlayerName && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(8,16,26,0.62)] p-4">
             <section className="w-full max-w-md border border-ink-700/10 bg-[rgba(255,250,241,0.72)] p-6 shadow-paper backdrop-blur-md">
@@ -347,10 +335,6 @@ export default function App() {
           <section className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_360px]">
             <section className="rounded-[28px] border border-ink-700/10 bg-[rgba(255,250,241,0.5)] p-5 shadow-paper">
               <div className="mb-4 flex items-center justify-between gap-4">
-                <div>
-                  <p className="m-0 text-xs uppercase tracking-[0.18em] text-ink-500">座位</p>
-                  <h2 className="m-0 font-display text-2xl text-ink-900">选位与门派</h2>
-                </div>
                 <div className="text-sm text-ink-700">你当前的座位：{mySeatId === null ? '观战' : `${Number(mySeatId) + 1}P`}</div>
               </div>
 
@@ -358,6 +342,9 @@ export default function App() {
                 {room.seats.map((seat) => {
                   const occupant = seat.memberId ? room.members.find((member) => member.id === seat.memberId) ?? null : null;
                   const isMine = seat.id === mySeatId;
+                  const shouldShowSectLabel = Boolean(occupant && !isMine && seat.sect !== null);
+                  const shouldShowSectSelect = isMine && seat.sect !== null;
+                  const selectedSect = seat.sect ?? undefined;
 
                   return (
                     <article
@@ -374,24 +361,27 @@ export default function App() {
                         </span>
                       </div>
 
-                      <p className="mb-0 mt-3 text-sm text-ink-700">当前门派：{getSectLabel(seat.sect ?? Sect.QINGXI)}</p>
+                      {shouldShowSectLabel && (
+                        <p className="mb-0 mt-3 text-sm text-ink-700">当前门派：{getSectLabel(seat.sect as Sect)}</p>
+                      )}
 
-                      <select
-                        className="mt-4 w-full rounded-[14px] border border-ink-700/12 bg-white/80 px-3 py-3 text-sm text-ink-900"
-                        disabled={!isMine}
-                        onChange={(event) => {
-                          void setSect({
-                            sect: Number(event.target.value) as Sect
-                          });
-                        }}
-                        value={seat.sect ?? Sect.QINGXI}
-                      >
-                        {ALL_SECTS.map((sect) => (
-                          <option key={sect} value={sect}>
-                            {getSectLabel(sect)}
-                          </option>
-                        ))}
-                      </select>
+                      {shouldShowSectSelect && (
+                        <select
+                          className="mt-4 w-full rounded-[14px] border border-ink-700/12 bg-white/80 px-3 py-3 text-sm text-ink-900"
+                          onChange={(event) => {
+                            void setSect({
+                              sect: Number(event.target.value) as Sect
+                            });
+                          }}
+                          value={selectedSect}
+                        >
+                          {ALL_SECTS.map((sect) => (
+                            <option key={sect} value={sect}>
+                              {getSectLabel(sect)}
+                            </option>
+                          ))}
+                        </select>
+                      )}
 
                       <div className="mt-4 flex gap-3">
                         <Button
@@ -497,15 +487,6 @@ export default function App() {
               </section>
             </aside>
           </section>
-
-          {error && (
-            <div className="rounded-[22px] border border-[rgba(139,75,60,0.2)] bg-[rgba(255,243,239,0.9)] px-5 py-4 text-sm text-[#704836]">
-              <div>{error}</div>
-              <Button className="mt-3 px-3 py-1 text-xs" onClick={() => setError(null)} type="button" variant="secondary">
-                关闭
-              </Button>
-            </div>
-          )}
         </section>
       </main>
     );
@@ -518,26 +499,6 @@ export default function App() {
 
     return (
       <main className={styles.shell}>
-        <section className={styles.hero}>
-          <div className={styles.seatBox}>
-            <span className={styles.seatLabel}>观战座位</span>
-            <div className={styles.seatList}>
-              {SEATS.map((seat) => (
-                <Button
-                  key={seat}
-                  className={String(seat) === viewSeatId ? styles.seatButtonActive : styles.seatButton}
-                  onClick={() => setViewSeatId(String(seat))}
-                  type="button"
-                  variant={String(seat) === viewSeatId ? 'active' : 'secondary'}
-                >
-                  {seat + 1}P
-                </Button>
-              ))}
-            </div>
-            <p className={styles.seatHint}>你控制的座位以服务端房间快照为准，切换只改变观察视角。</p>
-          </div>
-        </section>
-
         <section className={styles.clientFrame}>
           <div className="absolute left-4 top-4 z-40 flex flex-wrap gap-3">
             <span className="rounded-full bg-[rgba(255,251,241,0.88)] px-4 py-2 text-sm text-ink-700 shadow-paper">
@@ -562,6 +523,7 @@ export default function App() {
             onAction={(action) => {
               void sendGameAction(action);
             }}
+            onViewPlayerChange={setViewSeatId}
             viewPlayerID={viewSeatId}
           />
 
@@ -572,27 +534,17 @@ export default function App() {
               </div>
             </div>
           )}
-
-          {error && (
-            <div className="absolute bottom-4 left-4 z-40 max-w-md rounded-[22px] border border-[rgba(139,75,60,0.2)] bg-[rgba(255,243,239,0.95)] px-5 py-4 text-sm text-[#704836] shadow-paper">
-              <div>{error}</div>
-              <Button className="mt-3 px-3 py-1 text-xs" onClick={() => setError(null)} type="button" variant="secondary">
-                关闭
-              </Button>
-            </div>
-          )}
         </section>
       </main>
     );
   };
 
-  if (!room) {
-    return renderLobby();
-  }
+  const content = !room ? renderLobby() : room.status === 'lobby' ? renderRoom() : renderGame();
 
-  if (room.status === 'lobby') {
-    return renderRoom();
-  }
-
-  return renderGame();
+  return (
+    <>
+      <GlobalToast onDone={() => setError(null)} toast={error} />
+      {content}
+    </>
+  );
 }
