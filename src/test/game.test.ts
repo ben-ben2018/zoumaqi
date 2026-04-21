@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Ctx } from 'boardgame.io';
-import { Client as BgioClient } from 'boardgame.io/client';
+import { Client as BgioClient } from '../boardgameIoCompat';
 
 import {
   chooseAiCardPlay,

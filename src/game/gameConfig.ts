@@ -1,5 +1,5 @@
 import type { Ctx, FnContext, Game, PlayerID } from 'boardgame.io';
-import { TurnOrder } from 'boardgame.io/core';
+import { TurnOrder } from '../boardgameIoCompat';
 
 import {
   type CardUsageArgs,
