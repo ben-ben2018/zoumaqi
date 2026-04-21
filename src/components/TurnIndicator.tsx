@@ -14,24 +14,28 @@ export function TurnIndicator({ currentPlayerId, players, stage, totalTiles }: T
   const blueScore = Math.max(...players.filter((player) => player.team === 1).map((player) => player.position));
 
   return (
-    <section className="relative z-10 grid gap-3 rounded-[24px] border border-ink-700/10 bg-[rgba(255,250,242,0.84)] p-4 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center">
-      <div>
-        <p className="m-0 text-xs uppercase tracking-[0.18em] text-ink-500">回合指示</p>
-        <h2 className="m-0 font-display text-3xl text-ink-900">
+    <section className="relative z-10 grid gap-2 rounded-[20px] border border-ink-700/10 bg-[rgba(255,250,242,0.84)] p-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center">
+      <div className="min-w-0">
+        <div className="mb-1 flex flex-wrap items-center gap-2">
+          <p className="m-0 text-[11px] uppercase tracking-[0.16em] text-ink-500">回合指示</p>
+          <span className="rounded-full bg-[rgba(111,78,57,0.08)] px-2.5 py-1 text-[11px] text-ink-700">{stage}</span>
+        </div>
+        <h2 className="m-0 truncate font-display text-[1.65rem] text-ink-900">
           {currentPlayer.name} · {getSectLabel(currentPlayer.sect)}
         </h2>
-        <p className="m-0 text-sm text-ink-700">当前阶段：{stage}</p>
+        <p className="mt-1 text-[13px] text-ink-700">当前阵营：{getTeamLabel(currentPlayer.team)} · 胜利线 {totalTiles} 格</p>
       </div>
 
-      <div className="rounded-[18px] bg-[rgba(111,78,57,0.08)] px-4 py-3 text-sm text-ink-700">
-        <div>{getTeamLabel(currentPlayer.team)}</div>
+      <div className="grid gap-0.5 rounded-[16px] bg-[rgba(111,78,57,0.08)] px-3 py-2 text-[13px] leading-5 text-ink-700">
+        <div className="text-[11px] uppercase tracking-[0.14em] text-ink-500">阵营推进</div>
         <div>赤队前沿：{redScore + 1} 格</div>
         <div>青队前沿：{blueScore + 1} 格</div>
       </div>
 
-      <div className="rounded-[18px] bg-[rgba(98,130,113,0.12)] px-4 py-3 text-sm text-ink-700">
-        <div>胜利条件</div>
-        <div>任意队伍一名成员先到 {totalTiles} 格即胜</div>
+      <div className="grid gap-0.5 rounded-[16px] bg-[rgba(98,130,113,0.12)] px-3 py-2 text-[13px] leading-5 text-ink-700">
+        <div className="text-[11px] uppercase tracking-[0.14em] text-ink-500">胜负目标</div>
+        <div>任意队伍一名成员先到终点</div>
+        <div>率先抵达第 {totalTiles} 格即胜</div>
       </div>
     </section>
   );

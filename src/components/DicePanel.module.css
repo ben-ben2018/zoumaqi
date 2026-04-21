@@ -5,8 +5,8 @@
 
 .panel::before {
   position: absolute;
-  inset: auto 12px 10px;
-  height: 20px;
+  inset: auto 10px 8px;
+  height: 16px;
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(111, 78, 57, 0), rgba(111, 78, 57, 0.14), rgba(111, 78, 57, 0));
   content: '';
@@ -20,9 +20,9 @@
 
 .display::after {
   position: absolute;
-  inset: 10px;
+  inset: 8px;
   border: 1px solid rgba(108, 79, 63, 0.08);
-  border-radius: 16px;
+  border-radius: 14px;
   content: '';
   pointer-events: none;
 }
@@ -31,18 +31,18 @@
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 152px;
-  padding: 10px 0 8px;
+  min-height: 126px;
+  padding: 8px 0 6px;
 }
 
 .diceAura {
   position: absolute;
-  width: 124px;
+  width: 104px;
   aspect-ratio: 1;
-  border-radius: 34px;
+  border-radius: 28px;
   background:
     radial-gradient(circle at 34% 28%, rgba(248, 232, 196, 0.48), rgba(179, 148, 109, 0.12) 46%, rgba(86, 67, 44, 0));
-  filter: blur(14px);
+  filter: blur(12px);
   opacity: 0.7;
 }
 
@@ -59,10 +59,10 @@
   z-index: 1;
   display: grid;
   place-items: center;
-  width: 116px;
+  width: 96px;
   aspect-ratio: 1;
-  padding: 12px;
-  border-radius: 28px;
+  padding: 10px;
+  border-radius: 24px;
   background:
     linear-gradient(145deg, rgba(252, 245, 230, 0.96), rgba(232, 215, 186, 0.94)),
     linear-gradient(180deg, rgba(255, 250, 239, 0.92), rgba(225, 208, 177, 0.92));
@@ -78,17 +78,17 @@
 
 .diceFrame::before {
   position: absolute;
-  inset: 7px;
+  inset: 6px;
   border: 1px solid rgba(96, 70, 45, 0.12);
-  border-radius: 22px;
+  border-radius: 18px;
   content: '';
 }
 
 .diceFrame::after {
   position: absolute;
-  inset: 10px auto auto 12px;
-  width: 42px;
-  height: 22px;
+  inset: 8px auto auto 10px;
+  width: 34px;
+  height: 18px;
   border-radius: 999px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0));
   content: '';
@@ -114,8 +114,8 @@
   grid-template-rows: repeat(3, minmax(0, 1fr));
   width: 100%;
   height: 100%;
-  padding: 12px;
-  border-radius: 22px;
+  padding: 10px;
+  border-radius: 18px;
   background:
     linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(239, 227, 205, 0.95)),
     radial-gradient(circle at top, rgba(255, 255, 255, 0.82), rgba(231, 219, 196, 0.34));
@@ -128,8 +128,8 @@
 }
 
 .pip {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 999px;
   background: radial-gradient(circle at 35% 35%, #7d5f49, #3d2a1d 72%);
   box-shadow:
@@ -201,13 +201,13 @@
   place-items: center;
   color: rgba(90, 64, 44, 0.68);
   font-family: 'STKaiti', 'KaiTi', serif;
-  font-size: 1.4rem;
+  font-size: 1.15rem;
   letter-spacing: 0.14em;
 }
 
 .metaBlock {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   text-align: center;
 }
 
@@ -215,13 +215,13 @@
   margin: 0;
   color: #312619;
   font-family: 'STKaiti', 'KaiTi', serif;
-  font-size: 1.2rem;
+  font-size: 1.02rem;
 }
 
 .stepsText {
   margin: 0;
   color: #5a4b3a;
-  font-size: 0.88rem;
+  font-size: 0.8rem;
 }
 
 .actionButton {

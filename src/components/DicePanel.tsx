@@ -210,16 +210,16 @@ export function DicePanel({ stage, lastRoll, pendingRoll, disabled, onRoll }: Di
   };
 
   return (
-    <section className={clsx('rounded-[22px] border border-ink-700/10 bg-[rgba(255,250,241,0.82)] p-5', styles.panel)}>
-      <p className="mb-2 text-xs uppercase tracking-[0.18em] text-ink-500">骰子台</p>
-      <div className="grid gap-3">
+    <section className={clsx('rounded-[18px] border border-ink-700/10 bg-[rgba(255,250,241,0.82)] p-4', styles.panel)}>
+      <p className="mb-1.5 text-[11px] uppercase tracking-[0.16em] text-ink-500">骰子台</p>
+      <div className="grid gap-2.5">
         <div
           className={clsx(
-            'rounded-[20px] bg-[radial-gradient(circle_at_top,_rgba(113,135,120,0.22),_rgba(255,249,239,0.88))] p-5 text-center shadow-paper',
+            'rounded-[18px] bg-[radial-gradient(circle_at_top,_rgba(113,135,120,0.22),_rgba(255,249,239,0.88))] p-4 text-center shadow-paper',
             styles.display
           )}
         >
-          <p className="m-0 text-sm text-ink-700">最近点数</p>
+          <p className="m-0 text-[13px] text-ink-700">最近点数</p>
           <div className={styles.diceStage}>
             <div className={clsx(styles.diceAura, isRolling && styles.diceAuraRolling, isSettling && styles.diceAuraSettling)} />
             <div
@@ -260,7 +260,7 @@ export function DicePanel({ stage, lastRoll, pendingRoll, disabled, onRoll }: Di
 
         <button
           className={clsx(
-            'rounded-[16px] bg-[linear-gradient(180deg,#6f4e39,#513828)] px-4 py-3 text-[15px] text-ink-50 disabled:cursor-not-allowed disabled:opacity-45',
+            'rounded-[14px] bg-[linear-gradient(180deg,#6f4e39,#513828)] px-3 py-2.5 text-sm text-ink-50 disabled:cursor-not-allowed disabled:opacity-45',
             styles.actionButton
           )}
           disabled={!canRoll}
