@@ -29,8 +29,8 @@ import {
 } from '../game/cards/cardData';
 import { CardEffects } from '../game/cards/cardEffects';
 import { attemptOddAttack } from '../game/combat';
-import { addCardsToHand, createPlayers, applyOpeningEconomy } from '../game/helpers';
-import { DamaqiGame } from '../game/gameConfig';
+import { addCardsToHand, appendLog, createPlayers, applyOpeningEconomy } from '../game/helpers';
+import { DamaqiGame, runBotTurn } from '../game/gameConfig';
 import {
   ACTIVE_SKILL_COOLDOWNS,
   applyPassiveRollModifiers,
@@ -480,6 +480,21 @@ describe('ai logic', () => {
     expect(state?.G.players['2'].position).toBeGreaterThan(0);
     expect(state?.G.players['3'].position).toBeGreaterThan(0);
   });
+
+  it('writes explicit bot decision logs before using a card', () => {
+    const state = createTestState();
+    state.turnStage = TurnStage.CARD;
+    state.players['1'].gold = 60;
+    state.players['1'].position = 4;
+    state.players['0'].position = 18;
+    addCardsToHand(state.players['1'], [findCardDefinitionById('yizhi_qianjin')!]);
+
+    runBotTurn(state, createCtx('1'), createEvents() as never);
+
+    expect(state.actionLog.some((entry) => entry.includes('2P（AI）决定使用【一掷千金】'))).toBe(true);
+    expect(state.actionLog.some((entry) => entry.includes('2P 使用【一掷千金】，将获得 12 格位移。'))).toBe(true);
+    expect(state.actionLog.some((entry) => entry.includes('2P 通过 一掷千金'))).toBe(true);
+  });
 });
 
 describe('card effects', () => {
@@ -551,6 +566,19 @@ describe('card effects', () => {
 
     expect(state.players['0'].handCards).toHaveLength(1);
     expect(state.players['1'].handCards).toHaveLength(1);
+  });
+
+  it('keeps the full broadcast history for dense turns', () => {
+    const state = createTestState();
+    const logCount = 72;
+
+    for (let index = 0; index < logCount; index += 1) {
+      appendLog(state, `日志 ${index}`);
+    }
+
+    expect(state.actionLog).toHaveLength(logCount);
+    expect(state.actionLog[0]).toBe(`日志 ${logCount - 1}`);
+    expect(state.actionLog[state.actionLog.length - 1]).toBe('日志 0');
   });
 
   it('does not consume lingxu_yizhi when the target is out of range', () => {

@@ -44,7 +44,7 @@ export function getSectLabel(sect: Sect): string {
 }
 
 export function appendLog(G: GameState, message: string): void {
-  G.actionLog = [message, ...G.actionLog].slice(0, 16);
+  G.actionLog = [message, ...G.actionLog];
   G.turnMessage = message;
 }
 

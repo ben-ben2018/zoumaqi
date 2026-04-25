@@ -61,6 +61,57 @@ function setDiscardStage(events: EventsAPI, playerId: PlayerID): void {
   });
 }
 
+function describeTargetName(G: GameState, targetPlayerId?: PlayerID): string {
+  if (!targetPlayerId) {
+    return '';
+  }
+
+  const target = G.players[targetPlayerId];
+  return target ? `，目标 ${target.name}` : '';
+}
+
+function logBotSkillDecision(G: GameState, playerId: PlayerID, targetPlayerId?: PlayerID): void {
+  const player = G.players[playerId];
+  appendLog(G, `${player.name}（AI）决定发动主动技能${describeTargetName(G, targetPlayerId)}。`);
+}
+
+function logBotCardDecision(
+  G: GameState,
+  playerId: PlayerID,
+  cardId: string,
+  targetPlayerId?: PlayerID,
+  usageArgs?: CardUsageArgs
+): void {
+  const player = G.players[playerId];
+  const card = player.handCards.find((item) => item.id === cardId);
+  const cardName = card?.name ?? cardId;
+  const targetText = describeTargetName(G, targetPlayerId);
+  const extraText = cardId === 'lingyun_ta' && usageArgs?.selectedSteps ? `，预定移动 ${usageArgs.selectedSteps} 格` : '';
+  appendLog(G, `${player.name}（AI）决定使用【${cardName}】${targetText}${extraText}。`);
+}
+
+function logBotMoveDecision(G: GameState, playerId: PlayerID, chosenSteps: number, maxSteps: number): void {
+  const player = G.players[playerId];
+  if (chosenSteps === maxSteps) {
+    appendLog(G, `${player.name}（AI）决定按满额移动，前进 ${chosenSteps} 格。`);
+    return;
+  }
+
+  appendLog(G, `${player.name}（AI）决定保留走位，在可移动 ${maxSteps} 格时仅前进 ${chosenSteps} 格。`);
+}
+
+function logBotShopDecision(G: GameState, playerId: PlayerID, cardId: string): void {
+  const player = G.players[playerId];
+  const card = G.currentShop.find((item) => item.id === cardId);
+  appendLog(G, `${player.name}（AI）决定购买【${card?.name ?? cardId}】。`);
+}
+
+function logBotFinishShopDecision(G: GameState, playerId: PlayerID): void {
+  const player = G.players[playerId];
+  const movementText = (G.pendingMovement ?? 0) > 0 ? `，随后继续前进 ${G.pendingMovement} 格` : '';
+  appendLog(G, `${player.name}（AI）决定结束采购${movementText}。`);
+}
+
 export function resolveBotPendingDiscards(G: GameState, ctx: Ctx, events: EventsAPI): boolean {
   while (true) {
     const pendingDiscard = getPendingDiscard(G);
@@ -665,6 +716,7 @@ export function runBotTurn(G: GameState, ctx: Ctx, events: EventsAPI): void {
     if (G.turnStage === TurnStage.ROLL) {
       const skillPlay = chooseAiSkillPlay(G, botPlayerId);
       if (skillPlay) {
+        logBotSkillDecision(G, botPlayerId, skillPlay.targetPlayerId);
         useActiveSkill(moveContext, skillPlay.targetPlayerId);
         if (G.winnerTeam !== null || ctx.currentPlayer !== botPlayerId) {
           return;
@@ -677,7 +729,9 @@ export function runBotTurn(G: GameState, ctx: Ctx, events: EventsAPI): void {
     }
 
     if (G.turnStage === TurnStage.MOVE) {
-      movePlayer(moveContext, chooseAiMoveSteps(G, botPlayerId, G.pendingRoll ?? 0));
+      const chosenSteps = chooseAiMoveSteps(G, botPlayerId, G.pendingRoll ?? 0);
+      logBotMoveDecision(G, botPlayerId, chosenSteps, G.pendingRoll ?? 0);
+      movePlayer(moveContext, chosenSteps);
       continue;
     }
 
@@ -685,10 +739,12 @@ export function runBotTurn(G: GameState, ctx: Ctx, events: EventsAPI): void {
       const preShopTurnResolution = G.pendingTurnResolution;
       const nextCardId = chooseAiShopCardId(G, botPlayerId);
       if (nextCardId) {
+        logBotShopDecision(G, botPlayerId, nextCardId);
         buyCard(moveContext, nextCardId);
         continue;
       }
 
+      logBotFinishShopDecision(G, botPlayerId);
       finishShop(moveContext);
       if (preShopTurnResolution === 'endTurn' && G.pendingTurnResolution === null && !G.pendingShop) {
         return;
@@ -699,6 +755,7 @@ export function runBotTurn(G: GameState, ctx: Ctx, events: EventsAPI): void {
     if (G.turnStage === TurnStage.CARD) {
       const nextCardPlay = chooseAiCardPlay(G, botPlayerId);
       if (nextCardPlay) {
+        logBotCardDecision(G, botPlayerId, nextCardPlay.cardId, nextCardPlay.targetPlayerId, nextCardPlay.usageArgs);
         useCard(moveContext, nextCardPlay.cardId, nextCardPlay.targetPlayerId, nextCardPlay.usageArgs);
         continue;
       }
@@ -710,6 +767,7 @@ export function runBotTurn(G: GameState, ctx: Ctx, events: EventsAPI): void {
     if (G.turnStage === TurnStage.SKILL) {
       const skillPlay = chooseAiSkillPlay(G, botPlayerId);
       if (skillPlay) {
+        logBotSkillDecision(G, botPlayerId, skillPlay.targetPlayerId);
         useActiveSkill(moveContext, skillPlay.targetPlayerId);
         if (!G.pendingShop && !getPendingDiscard(G) && G.pendingTurnResolution === null) {
           return;
