@@ -390,7 +390,6 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
               <p className={styles.sectionKicker}>手牌区</p>
               <h2 className={styles.sectionTitle}>当前视角：{myPlayer.name}</h2>
             </div>
-            <p className={styles.handHint}>前端只展示服务端快照。目标选择与结算结果以服务端响应为准。</p>
           </div>
 
           <HandCards

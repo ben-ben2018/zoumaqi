@@ -152,8 +152,7 @@
 }
 
 .noticeText,
-.targetHint,
-.handHint {
+.targetHint {
   margin: 0;
   color: #5b4d3d;
   font-size: 0.84rem;
