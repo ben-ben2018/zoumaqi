@@ -25,6 +25,10 @@ function comparePlayers(left: PlayerData, right: PlayerData): number {
   return Number(left.id) - Number(right.id);
 }
 
+function getBoardPlayerLabel(player: Pick<PlayerData, 'id'>): string {
+  return String(Number(player.id) + 1);
+}
+
 function getTokenOffset(playerIndex: number) {
   return {
     x: ((playerIndex % 2) - 0.5) * 10 * BOARD_RENDER_SCALE,
@@ -281,7 +285,7 @@ export class BoardScene extends Phaser.Scene {
       display.root.setDepth(200 + index);
       display.halo.setVisible(player.id === currentPlayerId);
       display.core.setFillStyle(getTokenColor(player.team), 1);
-      display.label.setText(player.name.replace('P', ''));
+      display.label.setText(getBoardPlayerLabel(player));
 
       if (display.logicalPosition === player.position) {
         if (Math.abs(display.root.x - targetX) > 0.1 || Math.abs(display.root.y - targetY) > 0.1) {
@@ -313,7 +317,7 @@ export class BoardScene extends Phaser.Scene {
     const core = this.add.circle(0, 0, TOKEN_CORE_RADIUS, getTokenColor(player.team), 1);
     core.setStrokeStyle(TOKEN_CORE_STROKE_WIDTH, 0xf9f2e8, 0.8);
 
-    const label = this.add.text(0, BOARD_RENDER_SCALE, player.name.replace('P', ''), {
+    const label = this.add.text(0, BOARD_RENDER_SCALE, getBoardPlayerLabel(player), {
       color: '#f7f0e4',
       fontFamily: 'FZCJLJT, Noto Serif SC, Songti SC, serif',
       fontSize: TOKEN_LABEL_FONT_SIZE
