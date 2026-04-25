@@ -11,8 +11,8 @@ type ShopModalProps = {
 export function ShopModal({ cards, playerGold, onBuy, onClose }: ShopModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(34,25,17,0.3)] p-4 md:items-center">
-      <section className="w-full max-w-4xl rounded-[28px] border border-ink-700/14 bg-[linear-gradient(180deg,rgba(255,252,246,0.97),rgba(236,226,204,0.94))] p-6 shadow-paper">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+      <section className="flex max-h-[calc(100vh-2rem)] w-full max-w-7xl flex-col overflow-hidden rounded-[28px] border border-ink-700/14 bg-[linear-gradient(180deg,rgba(255,252,246,0.97),rgba(236,226,204,0.94))] p-6 shadow-paper">
+        <div className="mb-5 flex flex-none flex-wrap items-center justify-between gap-4">
           <div>
             <p className="m-0 text-xs uppercase tracking-[0.18em] text-ink-500">商店格</p>
             <h2 className="m-0 font-display text-3xl text-ink-900">江湖商铺</h2>
@@ -30,7 +30,8 @@ export function ShopModal({ cards, playerGold, onBuy, onClose }: ShopModalProps)
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="min-h-0 overflow-y-auto pr-1">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {cards.map((card, index) => (
             <article
               key={`${card.id}-${index}`}
@@ -54,6 +55,7 @@ export function ShopModal({ cards, playerGold, onBuy, onClose }: ShopModalProps)
               </Button>
             </article>
           ))}
+          </div>
         </div>
       </section>
     </div>

@@ -134,16 +134,18 @@ describe('boardData', () => {
     ]);
   });
 
-  it('uses 20 random cards for the third to fifth shops', () => {
+  it('uses 10 distinct random cards for the third to fifth shops', () => {
     const cards = generateShopCards(SHOP_TILE_INDICES[2]!);
 
-    expect(cards).toHaveLength(20);
+    expect(cards).toHaveLength(10);
+    expect(new Set(cards.map((card) => card.id)).size).toBe(10);
   });
 
-  it('uses 30 random cards for the sixth to ninth shops', () => {
+  it('uses 15 distinct random cards for the sixth to ninth shops', () => {
     const cards = generateShopCards(SHOP_TILE_INDICES[5]!);
 
-    expect(cards).toHaveLength(30);
+    expect(cards).toHaveLength(15);
+    expect(new Set(cards.map((card) => card.id)).size).toBe(15);
   });
 
   it('mystery tile can grant next-turn roll bonus', () => {

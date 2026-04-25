@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 
 import { Button } from './Button';
 import styles from './DamaqiBoard.module.css';
 import { DicePanel } from './DicePanel';
+import { GlobalToast } from './GlobalToast';
 import { HandCards } from './HandCards';
 import { PhaserBoard } from './PhaserBoard';
 import { ShopModal } from './ShopModal';
@@ -34,8 +35,30 @@ type PendingTargetAction =
     }
   | null;
 
+type ToastState = {
+  id: number;
+  message: string;
+} | null;
+
 const TEAMMATE_ONLY_CARD_IDS = new Set(['youqian_renxing', 'paiyou_jienan']);
 const ENEMY_TARGET_SKILL_SECTS = new Set([Sect.LIYUAN, Sect.SANGENGTIAN, Sect.ZUIHUAYIN, Sect.JIULIUMEN]);
+
+const GAMEPLAY_TOAST_PATTERNS = [
+  '触发奇遇',
+  '踏入首领格',
+  '附加了【',
+  '施加了【',
+  '获得【生财有道】收益强化',
+  '使用【妙手回春】',
+  '发动【千里奔袭】',
+  '发动【偷天换日】',
+  '目标将跳过下一回合',
+  '聚宝盆】使本回合投掷点数额外 +5'
+];
+
+function shouldShowGameplayToast(message: string): boolean {
+  return GAMEPLAY_TOAST_PATTERNS.some((pattern) => message.includes(pattern));
+}
 
 function getCandidateIds(card: CardData, currentPlayerId: string, players: Record<string, PlayerData>): string[] {
   const currentPlayer = players[currentPlayerId];
@@ -92,6 +115,9 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
   const [pendingCardAction, setPendingCardAction] = useState<PendingCardAction>(null);
   const [pendingTargetAction, setPendingTargetAction] = useState<PendingTargetAction>(null);
   const [isBroadcastOpen, setIsBroadcastOpen] = useState(false);
+  const [gameplayToast, setGameplayToast] = useState<ToastState>(null);
+  const toastIdRef = useRef(0);
+  const lastToastMessageRef = useRef<string | null>(G.actionLog[0] ?? null);
 
   const activePendingDiscard = G.pendingDiscards[0] ?? null;
   const pendingDiscardPlayer = activePendingDiscard ? G.players[activePendingDiscard.playerId] : null;
@@ -122,6 +148,24 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
       setPendingTargetAction(null);
     }
   }, [isHumanTurn, isViewingHumanSeat, ctx.currentPlayer]);
+
+  useEffect(() => {
+    const latestMessage = G.actionLog[0] ?? null;
+    if (!latestMessage || latestMessage === lastToastMessageRef.current) {
+      return;
+    }
+
+    lastToastMessageRef.current = latestMessage;
+    if (!shouldShowGameplayToast(latestMessage)) {
+      return;
+    }
+
+    toastIdRef.current += 1;
+    setGameplayToast({
+      id: toastIdRef.current,
+      message: latestMessage
+    });
+  }, [G.actionLog]);
 
   const handleUseCard = (cardId: string) => {
     const card = myPlayer.handCards.find((item) => item.id === cardId);
@@ -210,6 +254,8 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
 
   return (
     <div className={styles.shell}>
+      <GlobalToast onDone={() => setGameplayToast(null)} toast={gameplayToast} />
+
       <section className={styles.boardSurface}>
         <PhaserBoard tiles={G.board.tiles} players={Object.values(G.players)} currentPlayerId={ctx.currentPlayer} />
       </section>

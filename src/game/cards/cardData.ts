@@ -380,3 +380,25 @@ export function drawRandomCards(
     return cloneCard(card);
   });
 }
+
+export function drawDistinctRandomCards(
+  count: number,
+  pool: 'shop' | 'reward' | 'full' = 'reward'
+): CardData[] {
+  const source =
+    pool === 'shop' ? SHOP_CARD_POOL : pool === 'full' ? CARD_LIBRARY : REWARD_CARD_POOL;
+  const limit = Math.min(count, source.length);
+  const remaining = [...source];
+  const selected: CardData[] = [];
+
+  for (let index = 0; index < limit; index += 1) {
+    const pickedIndex = Math.floor(Math.random() * remaining.length);
+    const [pickedCard] = remaining.splice(pickedIndex, 1);
+    if (!pickedCard) {
+      break;
+    }
+    selected.push(cloneCard(pickedCard));
+  }
+
+  return selected;
+}

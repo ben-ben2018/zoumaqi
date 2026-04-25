@@ -1,7 +1,7 @@
 import type { PlayerID } from 'boardgame.io';
 
 import { MapEventType, type BoardData, type GameState, type TileData } from '../../types';
-import { drawRandomCards, findCardById } from '../cards/cardData';
+import { drawDistinctRandomCards, drawRandomCards, findCardById } from '../cards/cardData';
 import { appendLog, grantCardsToPlayer, setTimedEffect, takeRandomCard } from '../helpers';
 
 export const TOTAL_TILES = 100;
@@ -96,14 +96,14 @@ export function generateShopCards(shopTileIndex: number) {
   }
 
   if (shopOrder >= 2 && shopOrder <= 4) {
-    return drawRandomCards(20, 'shop');
+    return drawDistinctRandomCards(10, 'shop');
   }
 
   if (shopOrder >= 5) {
-    return drawRandomCards(30, 'shop');
+    return drawDistinctRandomCards(15, 'shop');
   }
 
-  return drawRandomCards(20, 'shop');
+  return drawDistinctRandomCards(10, 'shop');
 }
 
 function queueNextRollModifier(
