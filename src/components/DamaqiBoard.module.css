@@ -7,6 +7,12 @@
 .boardSurface {
   position: absolute;
   inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 88px 16px 156px;
+  pointer-events: none;
 }
 
 .hudLayer {
@@ -422,6 +428,10 @@
 }
 
 @media (max-width: 1120px) {
+  .boardSurface {
+    padding: 84px 12px 148px;
+  }
+
   .hudLayer {
     padding: 78px 12px 12px;
     grid-template-columns: minmax(0, 1fr) minmax(190px, 31vw);
@@ -447,6 +457,10 @@
 }
 
 @media (max-width: 720px) {
+  .boardSurface {
+    padding: 76px 10px 136px;
+  }
+
   .hudLayer {
     padding: 72px 10px 10px;
     grid-template-columns: minmax(0, 1fr) 148px;

@@ -3,9 +3,9 @@ import clsx from 'clsx';
 
 import { Button } from './Button';
 import styles from './DamaqiBoard.module.css';
-import { BoardCanvas } from './BoardCanvas';
 import { DicePanel } from './DicePanel';
 import { HandCards } from './HandCards';
+import { PhaserBoard } from './PhaserBoard';
 import { ShopModal } from './ShopModal';
 import { getHandLimit, getSectLabel, getTeamLabel } from '../game/helpers';
 import type { GameActionRequest, MatchSnapshot } from '../multiplayer/protocol';
@@ -211,7 +211,7 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
   return (
     <div className={styles.shell}>
       <section className={styles.boardSurface}>
-        <BoardCanvas tiles={G.board.tiles} players={Object.values(G.players)} currentPlayerId={ctx.currentPlayer} />
+        <PhaserBoard tiles={G.board.tiles} players={Object.values(G.players)} currentPlayerId={ctx.currentPlayer} />
       </section>
 
       <div className={styles.hudLayer}>
