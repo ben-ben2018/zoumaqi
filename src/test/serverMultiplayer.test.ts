@@ -278,6 +278,7 @@ describe('ServerGameSession', () => {
     expect(snapshot.G.players['0'].isBot).toBe(true);
     expect(snapshot.G.players['0'].position).toBe(1);
     expect(snapshot.G.players['0'].lastRoll).toBe(1);
+    expect(snapshot.G.players['1'].lastRoll).toBeNull();
     expect(snapshot.G.turnStage).toBe(TurnStage.ROLL);
     expect(snapshot.G.turnMessage).toBe('轮到 Human One（青队）行动。');
   });

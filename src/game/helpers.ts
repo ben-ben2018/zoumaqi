@@ -170,6 +170,7 @@ export function applyOpeningEconomy(players: Record<PlayerID, PlayerData>): void
 export function startTurn(G: GameState, playerId: PlayerID): void {
   const player = G.players[playerId];
 
+  player.lastRoll = null;
   player.hasRolledThisTurn = false;
   player.hasMovedThisTurn = false;
   player.hasUsedSkillThisTurn = false;
