@@ -168,7 +168,8 @@ describe('movement tile logic', () => {
   it('passing through a shop tile pauses movement and finishing shop continues the remaining steps', () => {
     const state = createTestState();
     state.turnStage = TurnStage.MOVE;
-    state.pendingRoll = 6;
+    state.players['0'].position = 3;
+    state.pendingRoll = 4;
     vi.spyOn(Math, 'random').mockReturnValue(0);
 
     const move = createMoveContext(state, '0', '0');
@@ -176,9 +177,9 @@ describe('movement tile logic', () => {
 
     movePlayer?.(move.context);
 
-    expect(state.players['0'].position).toBe(3);
+    expect(state.players['0'].position).toBe(5);
     expect(state.pendingShop).toBe(true);
-    expect(state.pendingMovement).toBe(3);
+    expect(state.pendingMovement).toBe(2);
     expect(state.pendingMovementSource).toBe('掷骰');
     expect(state.pendingShopResumeStage).toBe(TurnStage.CARD);
 
@@ -187,7 +188,7 @@ describe('movement tile logic', () => {
 
     finishShop?.(finish.context);
 
-    expect(state.players['0'].position).toBe(6);
+    expect(state.players['0'].position).toBe(7);
     expect(state.pendingShop).toBe(false);
     expect(state.pendingMovement).toBeNull();
     expect(state.pendingMovementSource).toBeNull();
@@ -201,16 +202,16 @@ describe('movement tile logic', () => {
   it('mystery tile does not trigger when only passed through without exact landing', () => {
     const state = createTestState();
     state.turnStage = TurnStage.MOVE;
-    state.players['0'].position = 4;
-    state.pendingRoll = 4;
+    state.players['0'].position = 14;
+    state.pendingRoll = 3;
 
     const move = createMoveContext(state, '0', '0');
     const movePlayer = DamaqiGame.moves?.movePlayer as ((context: never, requestedSteps?: number) => void) | undefined;
 
     movePlayer?.(move.context);
 
-    expect(state.players['0'].position).toBe(8);
-    expect(state.players['0'].gold).toBe(48);
+    expect(state.players['0'].position).toBe(17);
+    expect(state.players['0'].gold).toBe(46);
     expect(state.players['0'].handCards).toHaveLength(0);
     expect(state.players['0'].buffs.mystery_roll_bonus).toBeUndefined();
   });
@@ -218,16 +219,16 @@ describe('movement tile logic', () => {
   it('boss tile does not trigger when only passed through without exact landing', () => {
     const state = createTestState();
     state.turnStage = TurnStage.MOVE;
-    state.players['0'].position = 11;
-    state.pendingRoll = 5;
+    state.players['0'].position = 18;
+    state.pendingRoll = 3;
 
     const move = createMoveContext(state, '0', '0');
     const movePlayer = DamaqiGame.moves?.movePlayer as ((context: never, requestedSteps?: number) => void) | undefined;
 
     movePlayer?.(move.context);
 
-    expect(state.players['0'].position).toBe(16);
-    expect(state.players['0'].gold).toBe(50);
+    expect(state.players['0'].position).toBe(21);
+    expect(state.players['0'].gold).toBe(46);
     expect(state.players['0'].handCards).toHaveLength(0);
     expect(state.players['0'].debuffs.boss_roll_penalty).toBeUndefined();
   });

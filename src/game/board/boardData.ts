@@ -5,9 +5,9 @@ import { drawRandomCards } from '../cards/cardData';
 import { appendLog, grantCardsToPlayer, setTimedEffect, takeRandomCard } from '../helpers';
 
 export const TOTAL_TILES = 100;
-export const SHOP_TILE_INDICES = [3, 10, 20, 30, 40, 50, 60, 70, 80, 90];
-export const MYSTERY_TILE_INDICES = [6, 13, 23, 33, 43, 53, 63, 73, 83, 93];
-export const BOSS_TILE_INDICES = [15, 25, 35, 45, 55, 65, 75, 85, 95];
+export const SHOP_TILE_INDICES = [5, 13, 25, 38, 51, 61, 71, 81, 90];
+export const MYSTERY_TILE_INDICES = [3, 7, 10, 15, 18, 23, 27, 30, 34, 43, 47, 54, 59, 64, 68, 73, 78, 84, 88, 93];
+export const BOSS_TILE_INDICES = [11, 20, 28, 33, 55, 63, 77, 94];
 
 export const BOARD_COLUMNS = 20;
 export const BOARD_ROWS = TOTAL_TILES / BOARD_COLUMNS;
