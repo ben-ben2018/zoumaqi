@@ -338,6 +338,16 @@ describe('ai logic', () => {
     expect(chooseAiShopCardId(state, '0')).toBe('wuxiang_jinshen');
   });
 
+  it('continues spending shop gold on fallback utility cards when no top-priority purchase exists', () => {
+    const state = createTestState();
+    state.turnStage = TurnStage.SHOP;
+    state.pendingShop = true;
+    state.players['0'].gold = 60;
+    state.currentShop = [findCardDefinitionById('shengcai_youdao')!];
+
+    expect(chooseAiShopCardId(state, '0')).toBe('shengcai_youdao');
+  });
+
   it('uses positive movement buffs on the teammate for control archetypes', () => {
     const players = createPlayers({
       sects: [Sect.QINGXI, Sect.LIYUAN, Sect.TIANQUAN, Sect.GUYUN]
@@ -400,6 +410,47 @@ describe('ai logic', () => {
 
     expect(chooseAiSkillPlay(state, '0')).toEqual({
       targetPlayerId: '1'
+    });
+  });
+
+  it('uses Guyun active skill when skill plus Lingyun can set up an odd attack', () => {
+    const players = createPlayers({
+      sects: [Sect.GUYUN, Sect.LIYUAN, Sect.TIANQUAN, Sect.QINGXI]
+    });
+    applyOpeningEconomy(players);
+    const state: GameState = {
+      players,
+      board: createBoardData(),
+      currentShop: [],
+      pendingShop: false,
+      pendingShopResumeStage: null,
+      pendingDiscards: [],
+      pendingTurnResolution: null,
+      pendingRoll: null,
+      pendingMovement: null,
+      pendingMovementSource: null,
+      turnStage: TurnStage.ROLL,
+      actionLog: [],
+      winnerTeam: null,
+      turnMessage: ''
+    };
+    state.players['0'].position = 0;
+    state.players['1'].position = 11;
+    addCardsToHand(state.players['0'], [findCardDefinitionById('lingyun_ta')!]);
+
+    expect(chooseAiSkillPlay(state, '0')).toEqual({});
+  });
+
+  it('spends accumulated gold with yizhi_qianjin when it creates meaningful tempo', () => {
+    const state = createTestState();
+    state.turnStage = TurnStage.CARD;
+    state.players['0'].gold = 60;
+    state.players['0'].position = 4;
+    state.players['1'].position = 18;
+    addCardsToHand(state.players['0'], [findCardDefinitionById('yizhi_qianjin')!]);
+
+    expect(chooseAiCardPlay(state, '0')).toEqual({
+      cardId: 'yizhi_qianjin'
     });
   });
 

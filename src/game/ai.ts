@@ -20,6 +20,26 @@ import {
 
 const GOOD_OMEN_CARD_IDS = ['jixiang_haozao', 'jixiang_haoyun'] as const;
 const SWIFT_CARD_IDS = ['ji_zhuiyue', 'ji_zhuying', 'ji_feiyan'] as const;
+const SHOP_FALLBACK_CARD_IDS = [
+  'shengcai_youdao',
+  'pofu_chenzhou',
+  'yizhi_qianjin',
+  'haibu_wenshu',
+  'sancai_xiaozai',
+  'shexing_nayue',
+  'daodao_budaodao',
+  'jinyu_shou',
+  'youqian_renxing',
+  'paiyou_jienan',
+  'qianlimu',
+  'jixiang_haozao',
+  'jixiang_haoyun',
+  'ji_zhuiyue',
+  'ji_zhuying',
+  'ji_feiyan',
+  'wuxiang_jinshen',
+  'jubaopen'
+] as const;
 
 type SectArchetype = 'speed' | 'control' | 'aggressive' | 'balanced';
 
@@ -72,17 +92,49 @@ function countCardsById(player: PlayerData, cardId: string): number {
   return player.handCards.filter((card) => card.id === cardId).length;
 }
 
-function getFurthestEnemyId(G: GameState, playerId: PlayerID): PlayerID | null {
-  const [furthestEnemy] = getEnemyIds(G, playerId)
-    .map((enemyId) => G.players[enemyId])
-    .sort((left, right) => right.position - left.position);
+function getEnemyPlayers(G: GameState, playerId: PlayerID): PlayerData[] {
+  return getEnemyIds(G, playerId).map((enemyId) => G.players[enemyId]);
+}
 
+function getFurthestEnemyId(G: GameState, playerId: PlayerID): PlayerID | null {
+  const [furthestEnemy] = getEnemyPlayers(G, playerId).sort((left, right) => right.position - left.position);
   return furthestEnemy?.id ?? null;
+}
+
+function getRichestEnemyId(G: GameState, playerId: PlayerID): PlayerID | null {
+  const [richestEnemy] = getEnemyPlayers(G, playerId).sort(
+    (left, right) => right.gold - left.gold || right.position - left.position
+  );
+  return richestEnemy?.id ?? null;
+}
+
+function getEnemyWithMostCardsId(G: GameState, playerId: PlayerID): PlayerID | null {
+  const [bestTarget] = getEnemyPlayers(G, playerId).sort(
+    (left, right) => right.handCards.length - left.handCards.length || right.position - left.position
+  );
+  return bestTarget?.id ?? null;
 }
 
 function getOwnTeamLeaderPosition(G: GameState, playerId: PlayerID): number {
   const team = G.players[playerId].team;
   return Math.max(...Object.values(G.players).filter((candidate) => candidate.team === team).map((candidate) => candidate.position));
+}
+
+function getLingxuAttackRange(player: PlayerData): number {
+  return 2 + getAttackRangeBonus(player);
+}
+
+function findFurthestEnemyInRange(
+  G: GameState,
+  playerId: PlayerID,
+  position: number,
+  attackRange: number
+): PlayerID | null {
+  const [target] = getEnemyPlayers(G, playerId)
+    .filter((enemy) => Math.abs(enemy.position - position) <= attackRange)
+    .sort((left, right) => right.position - left.position);
+
+  return target?.id ?? null;
 }
 
 function canAttackWithLingxuFromPosition(G: GameState, playerId: PlayerID, position: number): PlayerID | null {
@@ -91,13 +143,11 @@ function canAttackWithLingxuFromPosition(G: GameState, playerId: PlayerID, posit
     return null;
   }
 
-  const attackRange = 2 + getAttackRangeBonus(player);
-  const [target] = getEnemyIds(G, playerId)
-    .map((enemyId) => G.players[enemyId])
-    .filter((enemy) => Math.abs(enemy.position - position) <= attackRange)
-    .sort((left, right) => right.position - left.position);
+  return findFurthestEnemyInRange(G, playerId, position, getLingxuAttackRange(player));
+}
 
-  return target?.id ?? null;
+function canAttackWithGeneratedLingxuFromPosition(G: GameState, playerId: PlayerID, position: number): PlayerID | null {
+  return findFurthestEnemyInRange(G, playerId, position, getLingxuAttackRange(G.players[playerId]));
 }
 
 function canAttackWithSangengtianSkillFromPosition(G: GameState, playerId: PlayerID, position: number): PlayerID | null {
@@ -106,17 +156,16 @@ function canAttackWithSangengtianSkillFromPosition(G: GameState, playerId: Playe
     return null;
   }
 
-  const attackRange = 6 + getAttackRangeBonus(player);
-  const [target] = getEnemyIds(G, playerId)
-    .map((enemyId) => G.players[enemyId])
-    .filter((enemy) => Math.abs(enemy.position - position) <= attackRange)
-    .sort((left, right) => right.position - left.position);
-
-  return target?.id ?? null;
+  return findFurthestEnemyInRange(G, playerId, position, 6 + getAttackRangeBonus(player));
 }
 
 function canOddAttackFromPosition(G: GameState, playerId: PlayerID, position: number): boolean {
   return Boolean(canAttackWithLingxuFromPosition(G, playerId, position) || canAttackWithSangengtianSkillFromPosition(G, playerId, position));
+}
+
+function hasNearbyPressureEnemy(G: GameState, playerId: PlayerID): boolean {
+  const player = G.players[playerId];
+  return getEnemyPlayers(G, playerId).some((enemy) => isWithinDirectionalWindow(player, enemy, 15, 6));
 }
 
 function getPositiveBuffTargetId(G: GameState, playerId: PlayerID): PlayerID {
@@ -206,6 +255,125 @@ function pickShopCard(
   return card.id;
 }
 
+function scoreFallbackShopCard(G: GameState, playerId: PlayerID, cardId: string): number {
+  const player = G.players[playerId];
+  const handLimit = getHandLimit(player);
+  const enemyLead = (getFurthestEnemyId(G, playerId) && G.players[getFurthestEnemyId(G, playerId)!].position - player.position) || 0;
+  const hasTeammate = Boolean(getTeammateId(G, playerId));
+  const hasNearbyEnemy = hasNearbyPressureEnemy(G, playerId);
+
+  if (cardId === 'shengcai_youdao') {
+    return player.buffs.shengcai ? 0 : 72;
+  }
+
+  if (cardId === 'pofu_chenzhou') {
+    if (player.gold < 20 || player.handCards.length > handLimit - 2) {
+      return 0;
+    }
+    return hasNearbyEnemy || enemyLead > 6 ? 70 : 38;
+  }
+
+  if (cardId === 'yizhi_qianjin') {
+    const steps = Math.min(Math.floor(player.gold / 5), 20);
+    if (steps <= 0) {
+      return 0;
+    }
+    if (player.position + steps >= G.board.totalTiles - 1) {
+      return 78;
+    }
+    return player.gold >= 45 || getSectArchetype(player.sect) === 'speed' ? 62 : 34;
+  }
+
+  if (cardId === 'haibu_wenshu') {
+    return hasCardInHand(player, cardId) ? 0 : 58;
+  }
+
+  if (cardId === 'sancai_xiaozai') {
+    return hasCardInHand(player, cardId) ? 0 : 54;
+  }
+
+  if (cardId === 'shexing_nayue') {
+    return getEnemyWithMostCardsId(G, playerId) ? 56 : 28;
+  }
+
+  if (cardId === 'daodao_budaodao') {
+    return getEnemyWithMostCardsId(G, playerId) ? 52 : 26;
+  }
+
+  if (cardId === 'jinyu_shou') {
+    return getFurthestEnemyId(G, playerId) ? 50 : 24;
+  }
+
+  if (cardId === 'youqian_renxing') {
+    return hasTeammate && player.gold >= 30 ? 42 : 20;
+  }
+
+  if (cardId === 'paiyou_jienan') {
+    return hasTeammate ? 40 : 18;
+  }
+
+  if (cardId === 'qianlimu') {
+    if (hasCardInHand(player, cardId)) {
+      return 0;
+    }
+    return hasCardInHand(player, 'lingxu_yizhi') || hasCardInHand(player, 'sata_liuxing') ? 60 : 36;
+  }
+
+  if (cardId === 'jixiang_haozao') {
+    if (hasCardInHand(player, cardId)) {
+      return 0;
+    }
+    return hasCardInHand(player, 'jixiang_haoyun') ? 66 : 44;
+  }
+
+  if (cardId === 'jixiang_haoyun') {
+    if (hasCardInHand(player, cardId)) {
+      return 0;
+    }
+    return hasCardInHand(player, 'jixiang_haozao') ? 66 : 44;
+  }
+
+  if (SWIFT_CARD_IDS.includes(cardId as (typeof SWIFT_CARD_IDS)[number])) {
+    if (hasCardInHand(player, cardId)) {
+      return 0;
+    }
+    return hasAllCardsInHand(player, [...SWIFT_CARD_IDS].filter((candidateId) => candidateId !== cardId)) ? 64 : 46;
+  }
+
+  if (cardId === 'wuxiang_jinshen') {
+    return hasCardInHand(player, cardId) ? 0 : 34;
+  }
+
+  if (cardId === 'jubaopen') {
+    if (hasCardInHand(player, cardId)) {
+      return 0;
+    }
+    return player.gold > 45 ? 60 : 18;
+  }
+
+  return 0;
+}
+
+function pickBestFallbackShopCard(G: GameState, playerId: PlayerID): string | null {
+  let bestCardId: string | null = null;
+  let bestScore = 0;
+
+  for (const cardId of SHOP_FALLBACK_CARD_IDS) {
+    const candidateId = pickShopCard(G, playerId, cardId, { skipPassiveDuplicate: true });
+    if (!candidateId) {
+      continue;
+    }
+
+    const score = scoreFallbackShopCard(G, playerId, candidateId);
+    if (score > bestScore) {
+      bestScore = score;
+      bestCardId = candidateId;
+    }
+  }
+
+  return bestCardId;
+}
+
 function findBestLingyunAttackStep(G: GameState, playerId: PlayerID): number | null {
   const currentPosition = G.players[playerId].position;
   for (let step = 6; step >= 3; step -= 1) {
@@ -243,6 +411,96 @@ function findBestLingyunFallbackStep(G: GameState, playerId: PlayerID): number |
   return null;
 }
 
+function canReachOddAttackAfterGuyunSkill(G: GameState, playerId: PlayerID): boolean {
+  const player = G.players[playerId];
+  const positionAfterSkill = Math.min(player.position + 6, G.board.totalTiles - 1);
+  if (canAttackWithGeneratedLingxuFromPosition(G, playerId, positionAfterSkill)) {
+    return true;
+  }
+
+  if (!hasCardInHand(player, 'lingyun_ta')) {
+    return false;
+  }
+
+  for (let step = 6; step >= 3; step -= 1) {
+    const targetPosition = Math.min(positionAfterSkill + step, G.board.totalTiles - 1);
+    if (canAttackWithGeneratedLingxuFromPosition(G, playerId, targetPosition)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function shouldUsePofuChenzhou(G: GameState, playerId: PlayerID): boolean {
+  const player = G.players[playerId];
+  if (player.gold < 20 || player.handCards.length > getHandLimit(player) - 2) {
+    return false;
+  }
+
+  if (hasNearbyPressureEnemy(G, playerId)) {
+    return true;
+  }
+
+  const furthestEnemyId = getFurthestEnemyId(G, playerId);
+  if (!furthestEnemyId) {
+    return false;
+  }
+
+  const archetype = getSectArchetype(player.sect);
+  return archetype === 'aggressive' || G.players[furthestEnemyId].position - player.position > 6;
+}
+
+function shouldUseYizhiQianjin(G: GameState, playerId: PlayerID): boolean {
+  const player = G.players[playerId];
+  const steps = Math.min(Math.floor(player.gold / 5), 20);
+  if (steps <= 0) {
+    return false;
+  }
+
+  if (player.position + steps >= G.board.totalTiles - 1) {
+    return true;
+  }
+
+  const furthestEnemyId = getFurthestEnemyId(G, playerId);
+  const enemyLead = furthestEnemyId ? G.players[furthestEnemyId].position - player.position : 0;
+  const archetype = getSectArchetype(player.sect);
+
+  return player.gold >= 45 || archetype === 'speed' || enemyLead > 6 || steps >= 8;
+}
+
+function shouldUseYouqianRenxing(G: GameState, playerId: PlayerID): boolean {
+  const player = G.players[playerId];
+  const teammateId = getTeammateId(G, playerId);
+  if (!teammateId || player.gold <= 0) {
+    return false;
+  }
+
+  const teammate = G.players[teammateId];
+  return teammate.position > player.position && player.gold >= 30;
+}
+
+function canUsePaiyouJienan(G: GameState, playerId: PlayerID): boolean {
+  const player = G.players[playerId];
+  const teammateId = getTeammateId(G, playerId);
+  if (!teammateId) {
+    return false;
+  }
+
+  return player.handCards.length > 1 && G.players[teammateId].handCards.length < getHandLimit(G.players[teammateId]);
+}
+
+function getBestLiyuanSkillTargetId(G: GameState, playerId: PlayerID): PlayerID | null {
+  const [target] = getEnemyPlayers(G, playerId).sort(
+    (left, right) =>
+      right.handCards.length - left.handCards.length ||
+      right.gold - left.gold ||
+      right.position - left.position
+  );
+
+  return target?.id ?? null;
+}
+
 export function chooseAiShopCardId(G: GameState, playerId: PlayerID): string | null {
   const player = G.players[playerId];
   if (player.handCards.length >= getHandLimit(player)) {
@@ -260,13 +518,11 @@ export function chooseAiShopCardId(G: GameState, playerId: PlayerID): string | n
   const furthestEnemyId = getFurthestEnemyId(G, playerId);
   const furthestEnemy = furthestEnemyId ? G.players[furthestEnemyId] : null;
 
-  const enemyHasImmediateOddAttackThreat = getEnemyIds(G, playerId).some((enemyId) => {
-    const enemy = G.players[enemyId];
+  const enemyHasImmediateOddAttackThreat = getEnemyPlayers(G, playerId).some((enemy) => {
     return enemy.handCards.some((card) => card.type === CardType.ATTACK) && isWithinDirectionalWindow(player, enemy, 3, 15);
   });
 
-  const sangengtianThreat = getEnemyIds(G, playerId).some((enemyId) => {
-    const enemy = G.players[enemyId];
+  const sangengtianThreat = getEnemyPlayers(G, playerId).some((enemy) => {
     return enemy.sect === Sect.SANGENGTIAN && enemy.activeSkillCooldown <= 0 && isWithinDirectionalWindow(player, enemy, 5, 15);
   });
 
@@ -274,9 +530,7 @@ export function chooseAiShopCardId(G: GameState, playerId: PlayerID): string | n
     return pickShopCard(G, playerId, 'wuxiang_jinshen', { skipPassiveDuplicate: true });
   }
 
-  const hasNearbyEnemyForLingxu = getEnemyIds(G, playerId).some((enemyId) =>
-    isWithinDirectionalWindow(player, G.players[enemyId], 15, 6)
-  );
+  const hasNearbyEnemyForLingxu = getEnemyPlayers(G, playerId).some((enemy) => isWithinDirectionalWindow(player, enemy, 15, 6));
   if (hasNearbyEnemyForLingxu && availableCardIds.has('lingxu_yizhi')) {
     return pickShopCard(G, playerId, 'lingxu_yizhi');
   }
@@ -298,12 +552,7 @@ export function chooseAiShopCardId(G: GameState, playerId: PlayerID): string | n
     return pickShopCard(G, playerId, 'jinyu_shou');
   }
 
-  if (
-    archetype === 'control' &&
-    teammate &&
-    hasTeamDebuff(teammate) &&
-    availableCardIds.has('qingfeng_jiyue')
-  ) {
+  if (archetype === 'control' && teammate && hasTeamDebuff(teammate) && availableCardIds.has('qingfeng_jiyue')) {
     return pickShopCard(G, playerId, 'qingfeng_jiyue');
   }
 
@@ -334,7 +583,7 @@ export function chooseAiShopCardId(G: GameState, playerId: PlayerID): string | n
     return pickShopCard(G, playerId, 'liangshang_junzi');
   }
 
-  return null;
+  return pickBestFallbackShopCard(G, playerId);
 }
 
 export function chooseAiMoveSteps(G: GameState, playerId: PlayerID, maxSteps: number): number {
@@ -354,7 +603,9 @@ export function chooseAiCardPlay(G: GameState, playerId: PlayerID): AiCardPlay |
   const teammate = teammateId ? G.players[teammateId] : null;
   const archetype = getSectArchetype(player.sect);
   const furthestEnemyId = getFurthestEnemyId(G, playerId);
-  const attackTargetId = canAttackWithLingxuFromPosition(G, playerId, player.position);
+  const richestEnemyId = getRichestEnemyId(G, playerId);
+  const fullestHandEnemyId = getEnemyWithMostCardsId(G, playerId);
+  const directLingxuTargetId = canAttackWithLingxuFromPosition(G, playerId, player.position);
 
   if (hasCardInHand(player, 'qingfeng_jiyue')) {
     const targetId = getCleanseTargetId(G, playerId);
@@ -386,10 +637,44 @@ export function chooseAiCardPlay(G: GameState, playerId: PlayerID): AiCardPlay |
     };
   }
 
-  if (attackTargetId) {
+  if (directLingxuTargetId) {
     return {
       cardId: 'lingxu_yizhi',
-      targetPlayerId: attackTargetId
+      targetPlayerId: directLingxuTargetId
+    };
+  }
+
+  if (furthestEnemyId && hasCardInHand(player, 'jinyu_shou')) {
+    return {
+      cardId: 'jinyu_shou',
+      targetPlayerId: furthestEnemyId
+    };
+  }
+
+  if (fullestHandEnemyId && G.players[fullestHandEnemyId].handCards.length > 0 && hasCardInHand(player, 'shexing_nayue')) {
+    return {
+      cardId: 'shexing_nayue',
+      targetPlayerId: fullestHandEnemyId
+    };
+  }
+
+  if (fullestHandEnemyId && G.players[fullestHandEnemyId].handCards.length > 0 && hasCardInHand(player, 'daodao_budaodao')) {
+    return {
+      cardId: 'daodao_budaodao',
+      targetPlayerId: fullestHandEnemyId
+    };
+  }
+
+  if (richestEnemyId && G.players[richestEnemyId].gold > 0 && hasCardInHand(player, 'liangshang_junzi')) {
+    return {
+      cardId: 'liangshang_junzi',
+      targetPlayerId: richestEnemyId
+    };
+  }
+
+  if (hasCardInHand(player, 'pofu_chenzhou') && shouldUsePofuChenzhou(G, playerId)) {
+    return {
+      cardId: 'pofu_chenzhou'
     };
   }
 
@@ -409,6 +694,26 @@ export function chooseAiCardPlay(G: GameState, playerId: PlayerID): AiCardPlay |
     }
   }
 
+  if (hasCardInHand(player, 'yizhi_qianjin') && shouldUseYizhiQianjin(G, playerId)) {
+    return {
+      cardId: 'yizhi_qianjin'
+    };
+  }
+
+  if (hasCardInHand(player, 'youqian_renxing') && shouldUseYouqianRenxing(G, playerId) && teammate) {
+    return {
+      cardId: 'youqian_renxing',
+      targetPlayerId: teammate.id
+    };
+  }
+
+  if (hasCardInHand(player, 'paiyou_jienan') && canUsePaiyouJienan(G, playerId) && teammate) {
+    return {
+      cardId: 'paiyou_jienan',
+      targetPlayerId: teammate.id
+    };
+  }
+
   if (furthestEnemyId && hasCardInHand(player, 'jinyu_shou')) {
     return {
       cardId: 'jinyu_shou',
@@ -416,65 +721,47 @@ export function chooseAiCardPlay(G: GameState, playerId: PlayerID): AiCardPlay |
     };
   }
 
-  if (furthestEnemyId && hasCardInHand(player, 'shexing_nayue')) {
+  if (fullestHandEnemyId && hasCardInHand(player, 'shexing_nayue')) {
     return {
       cardId: 'shexing_nayue',
-      targetPlayerId: furthestEnemyId
+      targetPlayerId: fullestHandEnemyId
     };
   }
 
-  if (furthestEnemyId && hasCardInHand(player, 'daodao_budaodao')) {
+  if (fullestHandEnemyId && hasCardInHand(player, 'daodao_budaodao')) {
     return {
       cardId: 'daodao_budaodao',
-      targetPlayerId: furthestEnemyId
+      targetPlayerId: fullestHandEnemyId
     };
   }
 
-  if (furthestEnemyId && hasCardInHand(player, 'liangshang_junzi')) {
+  if (richestEnemyId && hasCardInHand(player, 'liangshang_junzi')) {
     return {
       cardId: 'liangshang_junzi',
-      targetPlayerId: furthestEnemyId
+      targetPlayerId: richestEnemyId
     };
   }
 
-  if (
-    hasCardInHand(player, 'pofu_chenzhou') &&
-    player.gold >= 20 &&
-    player.handCards.length <= getHandLimit(player) - 1 &&
-    getEnemyIds(G, playerId).some((enemyId) => isWithinDirectionalWindow(player, G.players[enemyId], 15, 6))
-  ) {
+  if (hasCardInHand(player, 'pofu_chenzhou') && player.gold >= 20 && player.handCards.length <= getHandLimit(player) - 2) {
     return {
       cardId: 'pofu_chenzhou'
     };
   }
 
-  if (hasCardInHand(player, 'yizhi_qianjin')) {
-    const canReachFinish = player.position + Math.min(Math.floor(player.gold / 5), 20) >= G.board.totalTiles - 1;
-    if (canReachFinish || player.gold >= 25) {
-      return {
-        cardId: 'yizhi_qianjin'
-      };
-    }
+  if (hasCardInHand(player, 'yizhi_qianjin') && player.gold >= 20) {
+    return {
+      cardId: 'yizhi_qianjin'
+    };
   }
 
-  if (
-    hasCardInHand(player, 'youqian_renxing') &&
-    teammate &&
-    teammate.position > player.position &&
-    player.gold >= 40
-  ) {
+  if (hasCardInHand(player, 'youqian_renxing') && teammate && player.gold > 0) {
     return {
       cardId: 'youqian_renxing',
       targetPlayerId: teammate.id
     };
   }
 
-  if (
-    hasCardInHand(player, 'paiyou_jienan') &&
-    teammate &&
-    player.handCards.length > 1 &&
-    teammate.handCards.length < getHandLimit(teammate)
-  ) {
+  if (hasCardInHand(player, 'paiyou_jienan') && teammate && player.handCards.length > 1) {
     return {
       cardId: 'paiyou_jienan',
       targetPlayerId: teammate.id
@@ -507,12 +794,18 @@ export function chooseAiSkillPlay(G: GameState, playerId: PlayerID): AiSkillPlay
       if (player.position + 6 >= G.board.totalTiles - 1) {
         return {};
       }
+      if (canReachOddAttackAfterGuyunSkill(G, playerId)) {
+        return {};
+      }
       return furthestEnemy && furthestEnemy.position - player.position > 12 ? {} : null;
     case Sect.SANGENGTIAN: {
       const targetId = canAttackWithSangengtianSkillFromPosition(G, playerId, player.position);
       return targetId ? { targetPlayerId: targetId } : null;
     }
-    case Sect.LIYUAN:
+    case Sect.LIYUAN: {
+      const targetId = getBestLiyuanSkillTargetId(G, playerId);
+      return targetId ? { targetPlayerId: targetId } : null;
+    }
     case Sect.ZUIHUAYIN:
     case Sect.JIULIUMEN:
       return furthestEnemyId ? { targetPlayerId: furthestEnemyId } : null;
@@ -526,9 +819,7 @@ export function chooseAiDiscardCardId(G: GameState, playerId: PlayerID): string 
   const teammateId = getTeammateId(G, playerId);
   const teammate = teammateId ? G.players[teammateId] : null;
 
-  const hasNearbyThreat = getEnemyIds(G, playerId).some((enemyId) =>
-    isWithinDirectionalWindow(player, G.players[enemyId], 3, 15)
-  );
+  const hasNearbyThreat = getEnemyPlayers(G, playerId).some((enemy) => isWithinDirectionalWindow(player, enemy, 3, 15));
   if (!hasNearbyThreat) {
     if (hasCardInHand(player, 'lingxu_yizhi')) {
       return 'lingxu_yizhi';
