@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 
-import { BOARD_CANVAS_HEIGHT, BOARD_CANVAS_WIDTH, CURRENT_TILE_SIZE, TILE_SIZE } from './boardData';
+import { BOARD_CANVAS_HEIGHT, BOARD_CANVAS_WIDTH, BOARD_RENDER_SCALE, CURRENT_TILE_SIZE, TILE_SIZE } from './boardData';
 import { PlayerTeam, type PlayerData, type TileData } from '../../types';
 
 export const BOARD_SCENE_KEY = 'BoardScene';
@@ -27,10 +27,22 @@ function comparePlayers(left: PlayerData, right: PlayerData): number {
 
 function getTokenOffset(playerIndex: number) {
   return {
-    x: ((playerIndex % 2) - 0.5) * 10,
-    y: Math.floor(playerIndex / 2) * 10 - 5
+    x: ((playerIndex % 2) - 0.5) * 10 * BOARD_RENDER_SCALE,
+    y: Math.floor(playerIndex / 2) * 10 * BOARD_RENDER_SCALE - 5 * BOARD_RENDER_SCALE
   };
 }
+
+const BACKDROP_STRIPE_GAP = 40 * BOARD_RENDER_SCALE;
+const TRACK_LINE_WIDTH = 10 * BOARD_RENDER_SCALE;
+const TILE_BORDER_WIDTH = 2 * BOARD_RENDER_SCALE;
+const ACTIVE_TILE_HIGHLIGHT_PADDING = 4 * BOARD_RENDER_SCALE;
+const TILE_LABEL_FONT_SIZE = `${10 * BOARD_RENDER_SCALE}px`;
+const TOKEN_HALO_RADIUS = 12 * BOARD_RENDER_SCALE;
+const TOKEN_SHADOW_WIDTH = 16 * BOARD_RENDER_SCALE;
+const TOKEN_SHADOW_HEIGHT = 9 * BOARD_RENDER_SCALE;
+const TOKEN_CORE_RADIUS = 5.5 * BOARD_RENDER_SCALE;
+const TOKEN_CORE_STROKE_WIDTH = 1.2 * BOARD_RENDER_SCALE;
+const TOKEN_LABEL_FONT_SIZE = `${8 * BOARD_RENDER_SCALE}px`;
 
 function getTileFillColor(label: string): number {
   if (label === '终') {
@@ -66,6 +78,9 @@ export class BoardScene extends Phaser.Scene {
   private tokenDisplays = new Map<string, TokenDisplay>();
   private lastTileSignature = '';
   private pendingSnapshot: BoardRenderSnapshot | null = null;
+  private viewportWidth = BOARD_CANVAS_WIDTH;
+  private viewportHeight = BOARD_CANVAS_HEIGHT;
+  private textResolution = 1;
 
   constructor() {
     super(BOARD_SCENE_KEY);
@@ -74,6 +89,7 @@ export class BoardScene extends Phaser.Scene {
   create() {
     this.cameras.main.setRoundPixels(true);
     this.cameras.main.setBackgroundColor('#f1e8d8');
+    this.applyViewportLayout();
 
     this.backgroundLayer = this.add.graphics();
     this.trackLayer = this.add.graphics();
@@ -89,6 +105,28 @@ export class BoardScene extends Phaser.Scene {
     }
   }
 
+  layoutViewport(width: number, height: number, textResolution = 1) {
+    const nextWidth = Math.max(1, Math.floor(width));
+    const nextHeight = Math.max(1, Math.floor(height));
+    const didResolutionChange = Math.abs(this.textResolution - textResolution) > 0.01;
+
+    this.viewportWidth = nextWidth;
+    this.viewportHeight = nextHeight;
+    this.textResolution = Math.max(1, textResolution);
+    this.applyViewportLayout();
+
+    if (didResolutionChange) {
+      this.lastTileSignature = '';
+      this.tokenDisplays.forEach((display) => {
+        display.label.setResolution(this.textResolution);
+      });
+    }
+
+    if (this.pendingSnapshot && this.tileLayer && this.trackLayer && this.highlightLayer && this.labelLayer && this.tokenLayer) {
+      this.renderSnapshot(this.pendingSnapshot);
+    }
+  }
+
   syncState(snapshot: BoardRenderSnapshot) {
     this.pendingSnapshot = snapshot;
 
@@ -97,6 +135,20 @@ export class BoardScene extends Phaser.Scene {
     }
 
     this.renderSnapshot(snapshot);
+  }
+
+  private applyViewportLayout() {
+    const camera = this.cameras?.main;
+    if (!camera) {
+      return;
+    }
+
+    const zoom = Math.min(this.viewportWidth / BOARD_CANVAS_WIDTH, this.viewportHeight / BOARD_CANVAS_HEIGHT);
+
+    camera.setViewport(0, 0, this.viewportWidth, this.viewportHeight);
+    camera.setZoom(Math.max(zoom, 0.1));
+    camera.centerOn(BOARD_CANVAS_WIDTH / 2, BOARD_CANVAS_HEIGHT / 2);
+    camera.setBounds(0, 0, BOARD_CANVAS_WIDTH, BOARD_CANVAS_HEIGHT);
   }
 
   private renderSnapshot(snapshot: BoardRenderSnapshot) {
@@ -125,8 +177,8 @@ export class BoardScene extends Phaser.Scene {
     this.backgroundLayer.fillGradientStyle(0xfaf4e8, 0xfaf4e8, 0xd9c9ab, 0xeadfc7, 1);
     this.backgroundLayer.fillRect(0, 0, BOARD_CANVAS_WIDTH, BOARD_CANVAS_HEIGHT);
 
-    this.backgroundLayer.lineStyle(1, 0x745838, 0.05);
-    for (let x = -BOARD_CANVAS_HEIGHT; x < BOARD_CANVAS_WIDTH + BOARD_CANVAS_HEIGHT; x += 40) {
+    this.backgroundLayer.lineStyle(BOARD_RENDER_SCALE, 0x745838, 0.05);
+    for (let x = -BOARD_CANVAS_HEIGHT; x < BOARD_CANVAS_WIDTH + BOARD_CANVAS_HEIGHT; x += BACKDROP_STRIPE_GAP) {
       this.backgroundLayer.beginPath();
       this.backgroundLayer.moveTo(x, 0);
       this.backgroundLayer.lineTo(x + BOARD_CANVAS_HEIGHT, BOARD_CANVAS_HEIGHT);
@@ -140,7 +192,7 @@ export class BoardScene extends Phaser.Scene {
     }
 
     this.trackLayer.clear();
-    this.trackLayer.lineStyle(10, 0x694e2e, 0.18);
+    this.trackLayer.lineStyle(TRACK_LINE_WIDTH, 0x694e2e, 0.18);
     this.trackLayer.beginPath();
 
     tiles.forEach((tile, index) => {
@@ -165,8 +217,9 @@ export class BoardScene extends Phaser.Scene {
       const text = this.add.text(tile.x, tile.y, tile.label, {
         color: getTileTextColor(tile.label),
         fontFamily: 'FZCJLJT, Noto Serif SC, Songti SC, serif',
-        fontSize: '10px'
+        fontSize: TILE_LABEL_FONT_SIZE
       });
+      text.setResolution(this.textResolution);
       text.setOrigin(0.5);
       this.labelLayer?.add(text);
     });
@@ -190,12 +243,18 @@ export class BoardScene extends Phaser.Scene {
 
       if (isActiveTile) {
         highlightLayer.fillStyle(0xf8e4b9, 0.42);
-        highlightLayer.fillRoundedRect(tile.x - tileHalfSize - 4, tile.y - tileHalfSize - 4, tileSize + 8, tileSize + 8, 4);
+        highlightLayer.fillRoundedRect(
+          tile.x - tileHalfSize - ACTIVE_TILE_HIGHLIGHT_PADDING,
+          tile.y - tileHalfSize - ACTIVE_TILE_HIGHLIGHT_PADDING,
+          tileSize + ACTIVE_TILE_HIGHLIGHT_PADDING * 2,
+          tileSize + ACTIVE_TILE_HIGHLIGHT_PADDING * 2,
+          ACTIVE_TILE_HIGHLIGHT_PADDING
+        );
       }
 
       tileLayer.fillStyle(getTileFillColor(tile.label), 1);
       tileLayer.fillRect(tile.x - tileHalfSize, tile.y - tileHalfSize, tileSize, tileSize);
-      tileLayer.lineStyle(2, isActiveTile ? 0x714d29 : 0x44331e, isActiveTile ? 0.4 : 0.26);
+      tileLayer.lineStyle(TILE_BORDER_WIDTH, isActiveTile ? 0x714d29 : 0x44331e, isActiveTile ? 0.4 : 0.26);
       tileLayer.strokeRect(tile.x - tileHalfSize, tile.y - tileHalfSize, tileSize, tileSize);
     });
   }
@@ -247,18 +306,19 @@ export class BoardScene extends Phaser.Scene {
   }
 
   private createToken(player: PlayerData, x: number, y: number): TokenDisplay {
-    const halo = this.add.circle(0, 0, 12, 0xefd296, 0.28);
+    const halo = this.add.circle(0, 0, TOKEN_HALO_RADIUS, 0xefd296, 0.28);
     halo.setVisible(false);
 
-    const shadow = this.add.ellipse(0, 5, 16, 9, 0x34291d, 0.18);
-    const core = this.add.circle(0, 0, 5.5, getTokenColor(player.team), 1);
-    core.setStrokeStyle(1.2, 0xf9f2e8, 0.8);
+    const shadow = this.add.ellipse(0, 5 * BOARD_RENDER_SCALE, TOKEN_SHADOW_WIDTH, TOKEN_SHADOW_HEIGHT, 0x34291d, 0.18);
+    const core = this.add.circle(0, 0, TOKEN_CORE_RADIUS, getTokenColor(player.team), 1);
+    core.setStrokeStyle(TOKEN_CORE_STROKE_WIDTH, 0xf9f2e8, 0.8);
 
-    const label = this.add.text(0, 1, player.name.replace('P', ''), {
+    const label = this.add.text(0, BOARD_RENDER_SCALE, player.name.replace('P', ''), {
       color: '#f7f0e4',
       fontFamily: 'FZCJLJT, Noto Serif SC, Songti SC, serif',
-      fontSize: '8px'
+      fontSize: TOKEN_LABEL_FONT_SIZE
     });
+    label.setResolution(this.textResolution);
     label.setOrigin(0.5);
 
     const body = this.add.container(0, 0, [core, label]);

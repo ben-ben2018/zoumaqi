@@ -11,6 +11,26 @@ type PhaserBoardProps = {
   currentPlayerId: string;
 };
 
+const MAX_RENDER_RESOLUTION = 2;
+
+function getRenderResolution() {
+  if (typeof window === 'undefined') {
+    return 1;
+  }
+
+  return Math.min(window.devicePixelRatio || 1, MAX_RENDER_RESOLUTION);
+}
+
+function getHostViewport(host: HTMLDivElement) {
+  const width = Math.max(1, Math.floor(host.clientWidth || BOARD_CANVAS_WIDTH));
+  const height = Math.max(1, Math.floor(host.clientHeight || BOARD_CANVAS_HEIGHT));
+
+  return {
+    width,
+    height
+  };
+}
+
 export function PhaserBoard({ tiles, players, currentPlayerId }: PhaserBoardProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
@@ -24,28 +44,31 @@ export function PhaserBoard({ tiles, players, currentPlayerId }: PhaserBoardProp
 
     const scene = new BoardScene();
     sceneRef.current = scene;
+    const initialViewport = getHostViewport(host);
 
     const game = new Phaser.Game({
       type: Phaser.AUTO,
       parent: host,
-      width: BOARD_CANVAS_WIDTH,
-      height: BOARD_CANVAS_HEIGHT,
+      width: initialViewport.width,
+      height: initialViewport.height,
       backgroundColor: '#f1e8d8',
       render: {
         antialias: true,
-        roundPixels: false
+        roundPixels: true
       },
       scale: {
         parent: host,
-        mode: Phaser.Scale.FIT,
+        mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: BOARD_CANVAS_WIDTH,
-        height: BOARD_CANVAS_HEIGHT
+        autoRound: true,
+        width: initialViewport.width,
+        height: initialViewport.height
       },
       scene: [scene]
     });
 
     gameRef.current = game;
+    scene.layoutViewport(initialViewport.width, initialViewport.height, getRenderResolution());
     scene.syncState({
       tiles,
       players,
@@ -53,6 +76,11 @@ export function PhaserBoard({ tiles, players, currentPlayerId }: PhaserBoardProp
     });
 
     const observer = new ResizeObserver(() => {
+      const viewport = getHostViewport(host);
+      const resolution = getRenderResolution();
+
+      game.scale.resize(viewport.width, viewport.height);
+      scene.layoutViewport(viewport.width, viewport.height, resolution);
       game.scale.refresh();
     });
 

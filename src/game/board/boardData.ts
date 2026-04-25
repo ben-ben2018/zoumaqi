@@ -11,11 +11,12 @@ export const BOSS_TILE_INDICES = [15, 25, 35, 45, 55, 65, 75, 85, 95];
 
 export const BOARD_COLUMNS = 20;
 export const BOARD_ROWS = TOTAL_TILES / BOARD_COLUMNS;
-export const TILE_GAP = 34;
-export const TILE_SIZE = 18;
-export const CURRENT_TILE_SIZE = 22;
-export const OFFSET_X = 32;
-export const OFFSET_Y = 32;
+export const BOARD_RENDER_SCALE = 2;
+export const TILE_GAP = 34 * BOARD_RENDER_SCALE;
+export const TILE_SIZE = 18 * BOARD_RENDER_SCALE;
+export const CURRENT_TILE_SIZE = 22 * BOARD_RENDER_SCALE;
+export const OFFSET_X = 32 * BOARD_RENDER_SCALE;
+export const OFFSET_Y = 32 * BOARD_RENDER_SCALE;
 export const BOARD_CANVAS_WIDTH = OFFSET_X * 2 + (BOARD_COLUMNS - 1) * TILE_GAP + CURRENT_TILE_SIZE;
 export const BOARD_CANVAS_HEIGHT = OFFSET_Y * 2 + (BOARD_ROWS - 1) * TILE_GAP + CURRENT_TILE_SIZE;
 
