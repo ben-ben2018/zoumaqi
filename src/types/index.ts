@@ -144,5 +144,6 @@ export type CardEffectHandler = (
   ctx: Ctx,
   casterId: PlayerID,
   targetPlayerId?: PlayerID,
-  usageArgs?: CardUsageArgs
-) => void;
+  usageArgs?: CardUsageArgs,
+  playedCard?: CardData
+) => boolean;

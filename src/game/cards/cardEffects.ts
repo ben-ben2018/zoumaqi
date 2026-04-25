@@ -1,6 +1,6 @@
 import type { Ctx, PlayerID } from 'boardgame.io';
 
-import { type CardData, type CardUsageArgs, type GameState } from '../../types';
+import { type CardData, type CardUsageArgs, type GameState, type PlayerData } from '../../types';
 import { attemptOddAttack } from '../combat';
 import {
   appendLog,
@@ -17,8 +17,9 @@ import {
 } from '../helpers';
 import { findCardDefinitionById } from './cardData';
 
-const noopEffect = (G: GameState, _ctx: Ctx, casterId: PlayerID): void => {
+const noopEffect = (G: GameState, _ctx: Ctx, casterId: PlayerID): boolean => {
   appendLog(G, `${G.players[casterId].name} 持有被动卡，无需主动打出。`);
+  return false;
 };
 
 function addOrExtendTimedEffect(
@@ -53,6 +54,26 @@ function resolveTeammateTargetId(G: GameState, casterId: PlayerID, targetPlayerI
   return getTeammateId(G, casterId);
 }
 
+function takeRandomCardExcluding(player: PlayerData, excludedCard?: CardData): CardData | null {
+  const candidates = player.handCards.filter((item) => item !== excludedCard);
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  const chosenCard = candidates[Math.floor(Math.random() * candidates.length)] ?? candidates[0];
+  if (!chosenCard) {
+    return null;
+  }
+
+  const cardIndex = player.handCards.findIndex((item) => item === chosenCard);
+  if (cardIndex < 0) {
+    return null;
+  }
+
+  const [removedCard] = player.handCards.splice(cardIndex, 1);
+  return removedCard ?? null;
+}
+
 export const CardEffects = {
   lingyun_ta: (G: GameState, _ctx: Ctx, casterId: PlayerID, _targetPlayerId?: PlayerID, usageArgs?: CardUsageArgs) => {
     const caster = G.players[casterId];
@@ -68,70 +89,86 @@ export const CardEffects = {
       G,
       `${caster.name} 使用【凌云踏】，待执行位移 ${steps} 格${getsExtraStep ? '（疾·套装触发 +1）' : ''}。`
     );
+    return true;
   },
   yinyang_mizongbu: (G: GameState, _ctx: Ctx, casterId: PlayerID, targetPlayerId?: PlayerID) => {
     const targetId = resolveAllyTargetId(G, casterId, targetPlayerId);
     addOrExtendTimedEffect(G.players[targetId].buffs, 'yinyang', 2, 5);
     appendLog(G, `${G.players[casterId].name} 为 ${G.players[targetId].name} 附加了【阴阳迷踪步】。`);
+    return true;
   },
   jinyu_shou: (G: GameState, _ctx: Ctx, casterId: PlayerID, targetPlayerId?: PlayerID) => {
     if (!targetPlayerId) {
-      return;
+      return false;
     }
 
     addOrExtendTimedEffect(G.players[targetPlayerId].debuffs, 'jinyu_shou', 2, -3);
     appendLog(G, `${G.players[casterId].name} 对 ${G.players[targetPlayerId].name} 施加了【金玉手】。`);
+    return true;
   },
   wuxiang_jinshen: noopEffect,
   sancai_xiaozai: noopEffect,
   shexing_nayue: (G: GameState, _ctx: Ctx, casterId: PlayerID, targetPlayerId?: PlayerID) => {
     if (!targetPlayerId) {
-      return;
+      return false;
     }
 
     const stolen = takeRandomCard(G.players[targetPlayerId]);
     if (stolen) {
       grantCardsToPlayer(G, casterId, [stolen], '摄星拿月');
       appendLog(G, `${G.players[casterId].name} 用【摄星拿月】随机夺走了 ${G.players[targetPlayerId].name} 的 ${stolen.name}。`);
-      return;
+      return true;
     }
 
     appendLog(G, `${G.players[targetPlayerId].name} 没有手牌，【摄星拿月】落空。`);
+    return false;
   },
   daodao_budaodao: (G: GameState, _ctx: Ctx, casterId: PlayerID, targetPlayerId?: PlayerID) => {
     if (!targetPlayerId) {
-      return;
+      return false;
     }
 
     const lost = takeRandomCard(G.players[targetPlayerId]);
     if (lost) {
       appendLog(G, `${G.players[casterId].name} 让 ${G.players[targetPlayerId].name} 丢失了 ${lost.name}。`);
+      return true;
     }
+
+    appendLog(G, `${G.players[targetPlayerId].name} 没有手牌，【叨叨不叨叨】未能生效。`);
+    return false;
   },
   lingxu_yizhi: (G: GameState, _ctx: Ctx, casterId: PlayerID, targetPlayerId?: PlayerID) => {
     if (!targetPlayerId) {
-      return;
+      return false;
     }
 
     const caster = G.players[casterId];
     const range = 2 + getAttackRangeBonus(caster);
     if (getAbsoluteDistance(G, casterId, targetPlayerId) > range) {
       appendLog(G, `${caster.name} 与目标距离超过 ${range}，无法通过【凌虚一指】发起奇袭。`);
-      return;
+      return false;
     }
 
     attemptOddAttack(G, casterId, targetPlayerId);
+    return true;
   },
   yizhi_qianjin: (G: GameState, _ctx: Ctx, casterId: PlayerID) => {
     const caster = G.players[casterId];
+    if (caster.gold <= 0) {
+      appendLog(G, `${caster.name} 当前没有棋珍，【一掷千金】无法生效。`);
+      return false;
+    }
+
     const steps = Math.min(Math.floor(caster.gold / 5), 20);
     caster.gold = 0;
     G.pendingMovement = (G.pendingMovement ?? 0) + steps;
     appendLog(G, `${caster.name} 使用【一掷千金】，将获得 ${steps} 格位移。`);
+    return true;
   },
   shengcai_youdao: (G: GameState, _ctx: Ctx, casterId: PlayerID) => {
     setTimedEffect(G.players[casterId].buffs, 'shengcai', 2, true);
     appendLog(G, `${G.players[casterId].name} 获得【生财有道】收益强化。`);
+    return true;
   },
   ji_zhuiyue: noopEffect,
   ji_zhuying: noopEffect,
@@ -140,6 +177,7 @@ export const CardEffects = {
     const targetId = resolveAllyTargetId(G, casterId, targetPlayerId);
     cleanseDebuffs(G.players[targetId]);
     appendLog(G, `${G.players[casterId].name} 用【清风霁月】清除了 ${G.players[targetId].name} 的全部 Debuff。`);
+    return true;
   },
   jubaopen: noopEffect,
   sata_liuxing: noopEffect,
@@ -157,24 +195,31 @@ export const CardEffects = {
       G,
       `${G.players[casterId].name} 对 ${target.name} 使用【妙手回春】，${hadDebuff ? '清除了 Debuff 并使下两次投掷 +4。' : '目标无 Debuff，下两次投掷改为 +6。'}`
     );
+    return true;
   },
   liangshang_junzi: (G: GameState, _ctx: Ctx, casterId: PlayerID, targetPlayerId?: PlayerID) => {
     if (!targetPlayerId) {
-      return;
+      return false;
     }
 
     const target = G.players[targetPlayerId];
     const tribute = Math.min(target.gold, 20);
+    if (tribute <= 0) {
+      appendLog(G, `${target.name} 当前没有可夺取的棋珍，【梁上君子】未能生效。`);
+      return false;
+    }
+
     target.gold -= tribute;
     G.players[casterId].gold += tribute;
     appendLog(G, `${G.players[casterId].name} 用【梁上君子】从 ${target.name} 处夺得 ${tribute} 棋珍。`);
+    return true;
   },
   haibu_wenshu: noopEffect,
   pofu_chenzhou: (G: GameState, _ctx: Ctx, casterId: PlayerID) => {
     const caster = G.players[casterId];
     if (caster.gold < 20) {
       appendLog(G, `${caster.name} 的棋珍不足 20，无法发动【破釜沉舟】。`);
-      return;
+      return false;
     }
 
     caster.gold -= 20;
@@ -185,35 +230,50 @@ export const CardEffects = {
       '破釜沉舟'
     );
     appendLog(G, `${caster.name} 使用【破釜沉舟】，失去 20 棋珍并获得 2 张【凌虚一指】。`);
+    return true;
   },
   youqian_renxing: (G: GameState, _ctx: Ctx, casterId: PlayerID, targetPlayerId?: PlayerID) => {
     const teammateId = resolveTeammateTargetId(G, casterId, targetPlayerId);
     if (!teammateId) {
       appendLog(G, `${G.players[casterId].name} 使用【有钱任性】失败，未找到有效队友目标。`);
-      return;
+      return false;
     }
 
     const caster = G.players[casterId];
+    if (caster.gold <= 0) {
+      appendLog(G, `${caster.name} 当前没有棋珍，【有钱任性】无法转移。`);
+      return false;
+    }
+
     const teammate = G.players[teammateId];
     teammate.gold += caster.gold;
     appendLog(G, `${caster.name} 用【有钱任性】把 ${caster.gold} 棋珍全部交给了 ${teammate.name}。`);
     caster.gold = 0;
+    return true;
   },
-  paiyou_jienan: (G: GameState, _ctx: Ctx, casterId: PlayerID, targetPlayerId?: PlayerID) => {
+  paiyou_jienan: (
+    G: GameState,
+    _ctx: Ctx,
+    casterId: PlayerID,
+    targetPlayerId?: PlayerID,
+    _usageArgs?: CardUsageArgs,
+    playedCard?: CardData
+  ) => {
     const teammateId = resolveTeammateTargetId(G, casterId, targetPlayerId);
     if (!teammateId) {
       appendLog(G, `${G.players[casterId].name} 使用【排忧解难】失败，未找到有效队友目标。`);
-      return;
+      return false;
     }
 
-    const randomCard = takeRandomCard(G.players[casterId]);
+    const randomCard = takeRandomCardExcluding(G.players[casterId], playedCard);
     if (!randomCard) {
       appendLog(G, `${G.players[casterId].name} 没有额外手牌，【排忧解难】落空。`);
-      return;
+      return false;
     }
 
     grantCardsToPlayer(G, teammateId, [randomCard], '排忧解难');
     appendLog(G, `${G.players[casterId].name} 用【排忧解难】把 ${randomCard.name} 送给了 ${G.players[teammateId].name}。`);
+    return true;
   }
 } as const;
 
@@ -224,9 +284,9 @@ export function executeCardEffect(
   G: GameState,
   ctx: Ctx,
   usageArgs?: CardUsageArgs
-): void {
+): boolean {
   const definition = findCardDefinitionById(card.id);
-  definition?.effect(G, ctx, casterId, targetPlayerId, usageArgs);
+  return definition?.effect(G, ctx, casterId, targetPlayerId, usageArgs, card) ?? false;
 }
 
 export const NoopCardEffect = noopEffect;

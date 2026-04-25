@@ -552,6 +552,52 @@ describe('card effects', () => {
     expect(state.players['0'].handCards).toHaveLength(1);
     expect(state.players['1'].handCards).toHaveLength(1);
   });
+
+  it('does not consume lingxu_yizhi when the target is out of range', () => {
+    const state = createTestState();
+    state.turnStage = TurnStage.CARD;
+    state.players['0'].position = 0;
+    state.players['1'].position = 8;
+    addCardsToHand(state.players['0'], [findCardDefinitionById('lingxu_yizhi')!]);
+
+    const { context } = createMoveContext(state, '0', '0');
+    const useCard = DamaqiGame.moves?.useCard as ((context: never, cardId: string, targetPlayerId?: string) => void) | undefined;
+
+    useCard?.(context, 'lingxu_yizhi', '1');
+
+    expect(state.players['0'].handCards.map((card) => card.id)).toContain('lingxu_yizhi');
+    expect(state.players['1'].status).toBe(PlayerStatus.NORMAL);
+  });
+
+  it('does not consume pofu_chenzhou when the caster lacks enough gold', () => {
+    const state = createTestState();
+    state.turnStage = TurnStage.CARD;
+    state.players['0'].gold = 19;
+    addCardsToHand(state.players['0'], [findCardDefinitionById('pofu_chenzhou')!]);
+
+    const { context } = createMoveContext(state, '0', '0');
+    const useCard = DamaqiGame.moves?.useCard as ((context: never, cardId: string, targetPlayerId?: string) => void) | undefined;
+
+    useCard?.(context, 'pofu_chenzhou');
+
+    expect(state.players['0'].gold).toBe(19);
+    expect(state.players['0'].handCards.map((card) => card.id)).toContain('pofu_chenzhou');
+    expect(state.players['0'].handCards).toHaveLength(1);
+  });
+
+  it('does not consume paiyou_jienan when there is no extra card to give away', () => {
+    const state = createTestState();
+    state.turnStage = TurnStage.CARD;
+    addCardsToHand(state.players['0'], [findCardDefinitionById('paiyou_jienan')!]);
+
+    const { context } = createMoveContext(state, '0', '0');
+    const useCard = DamaqiGame.moves?.useCard as ((context: never, cardId: string, targetPlayerId?: string) => void) | undefined;
+
+    useCard?.(context, 'paiyou_jienan', '2');
+
+    expect(state.players['0'].handCards.map((card) => card.id)).toContain('paiyou_jienan');
+    expect(state.players['2'].handCards).toHaveLength(0);
+  });
 });
 
 describe('sect skills', () => {
@@ -870,6 +916,21 @@ describe('hand overflow discard flow', () => {
     expect(state.pendingDiscards).toHaveLength(0);
     expect(state.pendingTurnResolution).toBeNull();
     expect(discard.events.endTurn).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears transient overflow after pofu_chenzhou nets back under the hand limit', () => {
+    const state = createTestState();
+    state.turnStage = TurnStage.CARD;
+    state.players['0'].gold = 40;
+    addCardsToHand(state.players['0'], [...drawRandomCards(4, 'reward'), findCardDefinitionById('pofu_chenzhou')!]);
+
+    const { context } = createMoveContext(state, '0', '0');
+    const useCard = DamaqiGame.moves?.useCard as ((context: never, cardId: string, targetPlayerId?: string) => void) | undefined;
+
+    useCard?.(context, 'pofu_chenzhou');
+
+    expect(state.players['0'].handCards).toHaveLength(6);
+    expect(state.pendingDiscards).toHaveLength(0);
   });
 });
 

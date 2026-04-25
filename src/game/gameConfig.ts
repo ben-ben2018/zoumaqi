@@ -104,6 +104,8 @@ export function resolveBotPendingDiscards(G: GameState, ctx: Ctx, events: Events
 }
 
 export function syncActivePlayers(G: GameState, ctx: Ctx, events: EventsAPI): boolean {
+  popResolvedPendingDiscards(G);
+
   if (resolveBotPendingDiscards(G, ctx, events)) {
     return true;
   }
@@ -469,8 +471,18 @@ const useCard = (
     return;
   }
 
-  executeCardEffect(card, ctx.currentPlayer, targetPlayerId, G, ctx, usageArgs);
-  player.handCards = player.handCards.filter((item) => item !== card);
+  const didUseCard = executeCardEffect(card, ctx.currentPlayer, targetPlayerId, G, ctx, usageArgs);
+  if (!didUseCard) {
+    syncActivePlayers(G, ctx, events);
+    return;
+  }
+
+  const cardIndex = player.handCards.findIndex((item) => item === card);
+  if (cardIndex >= 0) {
+    player.handCards.splice(cardIndex, 1);
+  }
+
+  popResolvedPendingDiscards(G);
   resolvePendingMovementIfNeeded(G, events, ctx.currentPlayer, card.name, TurnStage.CARD, {
     skipPassedShops: card.id === 'lingyun_ta'
   });
