@@ -31,9 +31,9 @@ export function ShopModal({ cards, playerGold, onBuy, onClose }: ShopModalProps)
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          {cards.map((card) => (
+          {cards.map((card, index) => (
             <article
-              key={`${card.id}-${card.name}`}
+              key={`${card.id}-${index}`}
               className="flex min-h-[220px] flex-col rounded-[22px] border border-ink-700/10 bg-[rgba(255,248,235,0.8)] p-4"
             >
               <div className="mb-3 flex items-center justify-between gap-3">

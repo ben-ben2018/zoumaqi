@@ -1,7 +1,7 @@
 import type { PlayerID } from 'boardgame.io';
 
 import { MapEventType, type BoardData, type GameState, type TileData } from '../../types';
-import { drawRandomCards } from '../cards/cardData';
+import { drawRandomCards, findCardById } from '../cards/cardData';
 import { appendLog, grantCardsToPlayer, setTimedEffect, takeRandomCard } from '../helpers';
 
 export const TOTAL_TILES = 100;
@@ -67,9 +67,43 @@ export function createBoardData(): BoardData {
   };
 }
 
-export function generateShopCards(count = 3) {
-  // TODO: 按地图、回合和刷新权重接入正式商店卡池逻辑。
-  return drawRandomCards(count, 'shop');
+const FIRST_SHOP_CARD_IDS = [
+  'qingfeng_jiyue',
+  'wuxiang_jinshen',
+  'lingyun_ta',
+  'yinyang_mizongbu',
+  'lingxu_yizhi',
+  'shengcai_youdao'
+] as const;
+
+const SECOND_SHOP_CARD_IDS = [...FIRST_SHOP_CARD_IDS, 'ji_zhuiyue'] as const;
+
+function buildFixedShopCards(cardIds: readonly string[]) {
+  return cardIds
+    .map((cardId) => findCardById(cardId))
+    .filter((card): card is NonNullable<typeof card> => card !== undefined);
+}
+
+export function generateShopCards(shopTileIndex: number) {
+  const shopOrder = SHOP_TILE_INDICES.indexOf(shopTileIndex);
+
+  if (shopOrder === 0) {
+    return buildFixedShopCards(FIRST_SHOP_CARD_IDS);
+  }
+
+  if (shopOrder === 1) {
+    return buildFixedShopCards(SECOND_SHOP_CARD_IDS);
+  }
+
+  if (shopOrder >= 2 && shopOrder <= 4) {
+    return drawRandomCards(20, 'shop');
+  }
+
+  if (shopOrder >= 5) {
+    return drawRandomCards(30, 'shop');
+  }
+
+  return drawRandomCards(20, 'shop');
 }
 
 function queueNextRollModifier(

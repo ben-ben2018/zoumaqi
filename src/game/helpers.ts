@@ -167,6 +167,12 @@ export function applyOpeningEconomy(players: Record<PlayerID, PlayerData>): void
   }
 }
 
+export function applyRoundIncome(players: Record<PlayerID, PlayerData>, amount = 20): void {
+  for (const player of Object.values(players)) {
+    player.gold += amount;
+  }
+}
+
 export function startTurn(G: GameState, playerId: PlayerID): void {
   const player = G.players[playerId];
 
@@ -182,7 +188,6 @@ export function startTurn(G: GameState, playerId: PlayerID): void {
   G.pendingShopResumeStage = null;
   G.currentShop = [];
   G.turnStage = TurnStage.ROLL;
-  player.gold += 10; // TODO: 调整为最终经济系统的固定回合收入。
 }
 
 export function endTurnEffects(G: GameState, playerId: PlayerID): void {
@@ -318,7 +323,6 @@ export function movePlayerOnTrack(
   const to = Math.min(player.position + safeSteps, G.board.totalTiles - 1);
 
   player.position = to;
-  player.gold += safeSteps * 2; // TODO: 与正式经济公式对齐。
 
   return {
     from,

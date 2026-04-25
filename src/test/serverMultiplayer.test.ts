@@ -231,8 +231,8 @@ describe('ServerGameSession', () => {
       turn: 1
     });
     expect(snapshot.G.players['0'].name).toBe('Alice');
-    expect(snapshot.G.players['0'].gold).toBe(50);
-    expect(snapshot.G.players['1'].gold).toBe(40);
+    expect(snapshot.G.players['0'].gold).toBe(60);
+    expect(snapshot.G.players['1'].gold).toBe(60);
     expect(snapshot.G.turnStage).toBe(TurnStage.ROLL);
     expect(snapshot.G.turnMessage).toBe('轮到 Alice（赤队）行动。');
   });

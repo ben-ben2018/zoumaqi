@@ -9,7 +9,15 @@ import {
   chooseAiShopCardId,
   chooseAiSkillPlay
 } from '../game/ai';
-import { applyBossEvent, applyMysteryEvent, createBoardData, SHOP_TILE_INDICES, MYSTERY_TILE_INDICES, BOSS_TILE_INDICES } from '../game/board/boardData';
+import {
+  applyBossEvent,
+  applyMysteryEvent,
+  createBoardData,
+  generateShopCards,
+  SHOP_TILE_INDICES,
+  MYSTERY_TILE_INDICES,
+  BOSS_TILE_INDICES
+} from '../game/board/boardData';
 import {
   drawRandomCards,
   JIXIANG_HAOZAO_CARD,
@@ -97,6 +105,45 @@ describe('boardData', () => {
     expect(MYSTERY_TILE_INDICES.every((index) => board.tiles[index]?.label === '奇')).toBe(true);
     expect(BOSS_TILE_INDICES.every((index) => board.tiles[index]?.label === '首')).toBe(true);
     expect(board.tiles[99]?.label).toBe('终');
+  });
+
+  it('uses the fixed first shop inventory from 商品卡牌.md', () => {
+    const cards = generateShopCards(SHOP_TILE_INDICES[0]!);
+
+    expect(cards.map((card) => card.id)).toEqual([
+      'qingfeng_jiyue',
+      'wuxiang_jinshen',
+      'lingyun_ta',
+      'yinyang_mizongbu',
+      'lingxu_yizhi',
+      'shengcai_youdao'
+    ]);
+  });
+
+  it('uses the fixed second shop inventory from 商品卡牌.md', () => {
+    const cards = generateShopCards(SHOP_TILE_INDICES[1]!);
+
+    expect(cards.map((card) => card.id)).toEqual([
+      'qingfeng_jiyue',
+      'wuxiang_jinshen',
+      'lingyun_ta',
+      'yinyang_mizongbu',
+      'lingxu_yizhi',
+      'shengcai_youdao',
+      'ji_zhuiyue'
+    ]);
+  });
+
+  it('uses 20 random cards for the third to fifth shops', () => {
+    const cards = generateShopCards(SHOP_TILE_INDICES[2]!);
+
+    expect(cards).toHaveLength(20);
+  });
+
+  it('uses 30 random cards for the sixth to ninth shops', () => {
+    const cards = generateShopCards(SHOP_TILE_INDICES[5]!);
+
+    expect(cards).toHaveLength(30);
   });
 
   it('mystery tile can grant next-turn roll bonus', () => {
@@ -211,7 +258,7 @@ describe('movement tile logic', () => {
     movePlayer?.(move.context);
 
     expect(state.players['0'].position).toBe(17);
-    expect(state.players['0'].gold).toBe(46);
+    expect(state.players['0'].gold).toBe(40);
     expect(state.players['0'].handCards).toHaveLength(0);
     expect(state.players['0'].buffs.mystery_roll_bonus).toBeUndefined();
   });
@@ -228,7 +275,7 @@ describe('movement tile logic', () => {
     movePlayer?.(move.context);
 
     expect(state.players['0'].position).toBe(21);
-    expect(state.players['0'].gold).toBe(46);
+    expect(state.players['0'].gold).toBe(40);
     expect(state.players['0'].handCards).toHaveLength(0);
     expect(state.players['0'].debuffs.boss_roll_penalty).toBeUndefined();
   });
@@ -242,6 +289,24 @@ describe('opening economy', () => {
     expect(state.players['0'].gold).toBe(40);
     expect(state.players['1'].gold).toBe(40);
     expect(state.players['3'].gold).toBe(40);
+  });
+
+  it('grants 20 gold to every player when a new round starts', () => {
+    const client = BgioClient({
+      game: DamaqiGame,
+      numPlayers: 4
+    });
+
+    const state = client.getState();
+
+    expect(state?.ctx).toMatchObject({
+      currentPlayer: '0',
+      turn: 1
+    });
+    expect(state?.G.players['0'].gold).toBe(60);
+    expect(state?.G.players['1'].gold).toBe(60);
+    expect(state?.G.players['2'].gold).toBe(120);
+    expect(state?.G.players['3'].gold).toBe(60);
   });
 });
 
@@ -624,6 +689,23 @@ describe('hand overflow discard flow', () => {
     expect(state.players['0'].handCards).toHaveLength(7);
     expect(state.pendingDiscards[0]?.playerId).toBe('0');
     expect(state.pendingDiscards[0]?.reason).toBe('商店购买');
+  });
+
+  it('buying from a shop with duplicate cards only removes the purchased copy', () => {
+    const state = createTestState();
+    const card = findCardDefinitionById('liangshang_junzi')!;
+    state.turnStage = TurnStage.SHOP;
+    state.pendingShop = true;
+    state.currentShop = [card, card];
+    state.players['0'].gold = 100;
+
+    const { context } = createMoveContext(state, '0', '0');
+    const buyCard = DamaqiGame.moves?.buyCard as ((context: never, cardId: string) => void) | undefined;
+
+    buyCard?.(context, card.id);
+
+    expect(state.currentShop).toHaveLength(1);
+    expect(state.currentShop[0]?.id).toBe(card.id);
   });
 
   it('map mystery card rewards can also trigger forced discard', () => {

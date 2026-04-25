@@ -29,6 +29,7 @@ import {
 import {
   appendLog,
   applyOpeningEconomy,
+  applyRoundIncome,
   createPlayers,
   endTurnEffects,
   getPendingDiscard,
@@ -173,12 +174,13 @@ function findFirstShopStopIndex(G: GameState, from: number, to: number): number 
 function openShopStop(
   G: GameState,
   playerId: PlayerID,
+  shopTileIndex: number,
   remainingSteps: number,
   source: string,
   resumeStage: TurnStage
 ): void {
   const player = G.players[playerId];
-  G.currentShop = generateShopCards();
+  G.currentShop = generateShopCards(shopTileIndex);
   G.pendingShop = true;
   G.pendingShopResumeStage = resumeStage;
   G.pendingMovement = remainingSteps > 0 ? remainingSteps : null;
@@ -213,7 +215,7 @@ function resolveMovement(
       appendLog(G, `${player.name} 的【生财有道】生效，额外获得 ${Math.max(0, movedSteps)} 棋珍。`);
     }
     appendLog(G, `${player.name} 通过 ${source} 从 ${from + 1} 格前进到 ${to + 1} 格。`);
-    openShopStop(G, playerId, target - shopStopIndex, source, resumeStage);
+    openShopStop(G, playerId, shopStopIndex, target - shopStopIndex, source, resumeStage);
     resolveStopConsequences(G, events, playerId);
     return;
   }
@@ -354,7 +356,11 @@ const buyCard = ({ G, ctx, events }: MoveContext, cardId: string) => {
   }
 
   const player = G.players[ctx.currentPlayer];
-  const card = G.currentShop.find((item) => item.id === cardId);
+  const cardIndex = G.currentShop.findIndex((item) => item.id === cardId);
+  if (cardIndex < 0) {
+    return;
+  }
+  const card = G.currentShop[cardIndex];
   if (!card) {
     return;
   }
@@ -365,7 +371,7 @@ const buyCard = ({ G, ctx, events }: MoveContext, cardId: string) => {
 
   player.gold -= card.price;
   grantCardsToPlayer(G, ctx.currentPlayer, [card], '商店购买');
-  G.currentShop = G.currentShop.filter((item) => item.id !== cardId);
+  G.currentShop.splice(cardIndex, 1);
   appendLog(G, `${player.name} 购入了 ${card.name}。`);
   syncActivePlayers(G, ctx, events);
 };
@@ -755,6 +761,10 @@ export const DamaqiGame: Game<GameState, Record<string, never>, SetupData> = {
       }
     },
     onBegin: ({ G, ctx, events }) => {
+      if (ctx.currentPlayer === '0') {
+        applyRoundIncome(G.players, 20);
+      }
+
       startTurn(G, ctx.currentPlayer);
       applyStartTurnCardPassives(G, ctx.currentPlayer);
       const player = G.players[ctx.currentPlayer];
