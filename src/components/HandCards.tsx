@@ -17,27 +17,36 @@ export function HandCards({ cards, disabled, onUseCard }: HandCardsProps) {
   }
 
   return (
-    <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+    <div className="grid auto-cols-fr grid-flow-col gap-2.5 overflow-hidden">
       {cards.map((card, index) => {
         return (
           <article
             key={`${card.id}-${index}`}
-            className="flex min-h-[152px] flex-col rounded-[18px] border border-ink-700/12 bg-[linear-gradient(180deg,rgba(255,251,243,0.94),rgba(235,226,206,0.88))] p-3 shadow-paper"
+            className="flex min-h-[136px] min-w-0 flex-col rounded-[18px] border border-ink-700/12 bg-[linear-gradient(180deg,rgba(255,251,243,0.94),rgba(235,226,206,0.88))] p-3 shadow-paper"
           >
             <div className="mb-2 flex items-start justify-between gap-2">
-              <div>
+              <div className="min-w-0">
                 <p className="m-0 text-[11px] uppercase tracking-[0.16em] text-ink-500">
                   {card.isPassive ? '被动卡' : '主动卡'}
                 </p>
-                <h3 className="m-0 font-display text-xl text-ink-900">{card.name}</h3>
+                <h3 className="m-0 truncate font-display text-[clamp(1rem,1.3vw,1.35rem)] text-ink-900">{card.name}</h3>
               </div>
-              <span className="rounded-full bg-ink-100 px-2.5 py-1 text-[11px] text-ink-700">{card.price} 棋珍</span>
+              <span className="shrink-0 rounded-full bg-ink-100 px-2 py-1 text-[10px] text-ink-700">{card.price} 棋珍</span>
             </div>
 
-            <p className="m-0 flex-1 text-[13px] leading-6 text-ink-700">{card.description}</p>
+            <p
+              className="m-0 flex-1 overflow-hidden text-[12px] leading-5 text-ink-700"
+              style={{
+                display: '-webkit-box',
+                WebkitBoxOrient: 'vertical',
+                WebkitLineClamp: 4
+              }}
+            >
+              {card.description}
+            </p>
 
             <Button
-              className="mt-3 px-3 py-2.5 text-[13px]"
+              className="mt-3 px-3 py-2 text-[12px]"
               disabled={disabled || card.isPassive}
               onClick={() => onUseCard(card.id)}
               type="button"

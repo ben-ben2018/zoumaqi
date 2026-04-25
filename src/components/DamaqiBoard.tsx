@@ -298,70 +298,6 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
           )}
         </div>
 
-        <aside className={styles.sideColumn}>
-          <div className={styles.noticeCard}>
-            <p className={styles.sectionKicker}>联机座位</p>
-            <h3 className={styles.noticeTitle}>
-              {myPlayer.name} · {getTeamLabel(myPlayer.team)}
-            </h3>
-            <p className={styles.noticeText}>
-              当前视角为 {myPlayer.name}（{myPlayer.isBot ? 'AI' : '人类'}）· {getSectLabel(myPlayer.sect)}。
-              {actualHumanPlayerId
-                ? isHumanTurn
-                  ? isViewingHumanSeat
-                    ? '现在轮到你操作。'
-                    : '当前是你的回合，但你正在观察其他座位。切回自己的座位后才能操作。'
-                  : `${currentPlayer.name} 正在行动。`
-                : '你当前是观战状态。'}
-            </p>
-            <p className={styles.noticeText}>所有动作都只会发给服务端，页面不会本地乐观结算。</p>
-          </div>
-
-          <DicePanel
-            stage={G.turnStage}
-            lastRoll={currentPlayer.lastRoll}
-            pendingRoll={G.pendingRoll}
-            disabled={areActionButtonsDisabled}
-            onRoll={() => onAction({ type: 'rollDice' })}
-          />
-
-          <div className={styles.quickActions}>
-            <Button
-              className={clsx(styles.quickButton, G.turnStage === TurnStage.CARD && styles.quickButtonActive)}
-              disabled={areActionButtonsDisabled || G.turnStage !== TurnStage.CARD}
-              onClick={() => onAction({ type: 'finishCardStage' })}
-              type="button"
-              variant={G.turnStage === TurnStage.CARD ? 'active' : 'secondary'}
-            >
-              结束出牌
-            </Button>
-            <Button
-              className={clsx(styles.quickButton, G.turnStage === TurnStage.SKILL && styles.quickButtonActive)}
-              disabled={areActionButtonsDisabled || G.turnStage !== TurnStage.SKILL}
-              onClick={() => onAction({ type: 'finishSkillStage' })}
-              type="button"
-              variant={G.turnStage === TurnStage.SKILL ? 'active' : 'secondary'}
-            >
-              跳过技能
-            </Button>
-            <Button
-              className={styles.skillButton}
-              disabled={
-                areActionButtonsDisabled ||
-                ![TurnStage.ROLL, TurnStage.CARD, TurnStage.SKILL].includes(G.turnStage) ||
-                myPlayer.activeSkillCooldown > 0
-              }
-              onClick={handleUseActiveSkill}
-              type="button"
-              variant="primary"
-            >
-              {myPlayer.activeSkillCooldown > 0
-                ? `技能冷却 ${myPlayer.activeSkillCooldown}`
-                : `发动${getSectLabel(myPlayer.sect)}主动`}
-            </Button>
-          </div>
-        </aside>
-
         <div className={styles.playerDock}>
           <div className={styles.playerTableWrap}>
             <table className={styles.playerTable}>
@@ -444,6 +380,52 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
             onUseCard={handleUseCard}
           />
         </section>
+
+        <aside className={styles.actionBlock}>
+          <DicePanel
+            stage={G.turnStage}
+            lastRoll={currentPlayer.lastRoll}
+            pendingRoll={G.pendingRoll}
+            disabled={areActionButtonsDisabled}
+            onRoll={() => onAction({ type: 'rollDice' })}
+          />
+
+          <div className={styles.quickActions}>
+            <Button
+              className={clsx(styles.quickButton, G.turnStage === TurnStage.CARD && styles.quickButtonActive)}
+              disabled={areActionButtonsDisabled || G.turnStage !== TurnStage.CARD}
+              onClick={() => onAction({ type: 'finishCardStage' })}
+              type="button"
+              variant={G.turnStage === TurnStage.CARD ? 'active' : 'secondary'}
+            >
+              结束出牌
+            </Button>
+            <Button
+              className={clsx(styles.quickButton, G.turnStage === TurnStage.SKILL && styles.quickButtonActive)}
+              disabled={areActionButtonsDisabled || G.turnStage !== TurnStage.SKILL}
+              onClick={() => onAction({ type: 'finishSkillStage' })}
+              type="button"
+              variant={G.turnStage === TurnStage.SKILL ? 'active' : 'secondary'}
+            >
+              跳过技能
+            </Button>
+            <Button
+              className={styles.skillButton}
+              disabled={
+                areActionButtonsDisabled ||
+                ![TurnStage.ROLL, TurnStage.CARD, TurnStage.SKILL].includes(G.turnStage) ||
+                myPlayer.activeSkillCooldown > 0
+              }
+              onClick={handleUseActiveSkill}
+              type="button"
+              variant="primary"
+            >
+              {myPlayer.activeSkillCooldown > 0
+                ? `技能冷却 ${myPlayer.activeSkillCooldown}`
+                : `发动${getSectLabel(myPlayer.sect)}主动`}
+            </Button>
+          </div>
+        </aside>
       </div>
 
       {G.pendingShop && (

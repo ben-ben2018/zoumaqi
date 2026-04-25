@@ -24,8 +24,8 @@
   padding: 82px 14px 14px;
   grid-template-columns: minmax(0, 1fr) clamp(232px, 24vw, 292px);
   grid-template-areas:
-    'players side'
-    'hand hand';
+    'players players'
+    'hand actions';
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 10px 12px;
   align-content: stretch;
@@ -33,7 +33,7 @@
   overflow: hidden;
 }
 
-.sideColumn,
+.actionBlock,
 .playerDock,
 .handBlock {
   pointer-events: auto;
@@ -127,15 +127,6 @@
   line-height: 1.45;
 }
 
-.sideColumn {
-  grid-area: side;
-  display: grid;
-  gap: 10px;
-  align-self: start;
-  max-height: min(100%, 448px);
-  overflow: auto;
-}
-
 .noticeCard,
 .targetCard {
   display: grid;
@@ -202,8 +193,8 @@
   grid-area: players;
   align-self: start;
   min-height: 0;
-  width: fit-content;
-  max-width: min(760px, 100%);
+  width: 100%;
+  max-width: 100%;
 }
 
 .playerTableWrap {
@@ -313,10 +304,11 @@
 
 .handBlock {
   grid-area: hand;
-  align-self: end;
+  align-self: stretch;
   min-height: 0;
-  max-height: min(24dvh, 244px);
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding: 14px;
   border-radius: 20px;
 }
@@ -328,6 +320,15 @@
   justify-content: space-between;
   align-items: flex-end;
   margin-bottom: 10px;
+}
+
+.actionBlock {
+  grid-area: actions;
+  align-self: stretch;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
 }
 
 .overlay {
@@ -441,16 +442,11 @@
     max-width: min(100%, 540px);
   }
 
-  .sideColumn {
-    max-height: min(100%, 400px);
-  }
-
   .quickActions {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .handBlock {
-    max-height: min(26dvh, 228px);
     padding: 12px;
   }
 }
@@ -481,11 +477,6 @@
     max-height: min(40dvh, 280px);
   }
 
-  .sideColumn {
-    gap: 8px;
-    max-height: min(100%, 332px);
-  }
-
   .playerTable {
     font-size: 0.64rem;
   }
@@ -496,7 +487,6 @@
   }
 
   .handBlock {
-    max-height: min(28dvh, 212px);
     padding: 10px;
   }
 
