@@ -231,8 +231,10 @@ describe('ServerGameSession', () => {
       turn: 1
     });
     expect(snapshot.G.players['0'].name).toBe('Alice');
-    expect(snapshot.G.players['0'].gold).toBe(60);
-    expect(snapshot.G.players['1'].gold).toBe(60);
+    expect(snapshot.G.players['0'].gold).toBe(55);
+    expect(snapshot.G.players['1'].gold).toBe(55);
+    expect(snapshot.G.players['0'].handCards).toHaveLength(1);
+    expect(snapshot.G.players['1'].handCards).toHaveLength(1);
     expect(snapshot.G.turnStage).toBe(TurnStage.ROLL);
     expect(snapshot.G.turnMessage).toBe('轮到 Alice（赤队）行动。');
   });
@@ -276,7 +278,7 @@ describe('ServerGameSession', () => {
       turn: 2
     });
     expect(snapshot.G.players['0'].isBot).toBe(true);
-    expect(snapshot.G.players['0'].position).toBe(1);
+    expect(snapshot.G.players['0'].position).toBe(7);
     expect(snapshot.G.players['0'].lastRoll).toBe(1);
     expect(snapshot.G.players['1'].lastRoll).toBeNull();
     expect(snapshot.G.turnStage).toBe(TurnStage.ROLL);

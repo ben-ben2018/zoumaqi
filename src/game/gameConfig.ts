@@ -18,6 +18,7 @@ import {
   chooseAiSkillPlay
 } from './ai';
 import { applyBossEvent, applyMysteryEvent, createBoardData, generateShopCards } from './board/boardData';
+import { drawRandomCards } from './cards/cardData';
 import { executeCardEffect } from './cards/cardEffects';
 import {
   applyStartTurnCardPassives,
@@ -171,6 +172,24 @@ function findFirstShopStopIndex(G: GameState, from: number, to: number): number 
   return null;
 }
 
+function resolveShopStopIndex(G: GameState, from: number, to: number, skipPassedShops: boolean): number | null {
+  if (!skipPassedShops) {
+    return findFirstShopStopIndex(G, from, to);
+  }
+
+  return G.board.tiles[to]?.eventType === MapEventType.SHOP ? to : null;
+}
+
+function applyRoundOpeningRewards(G: GameState): void {
+  applyRoundIncome(G.players, 15);
+
+  for (const playerId of Object.keys(G.players) as PlayerID[]) {
+    grantCardsToPlayer(G, playerId, drawRandomCards(1, 'reward'), '回合开始奖励');
+  }
+
+  appendLog(G, '新一轮开始，所有玩家各获得 15 棋珍和 1 张随机卡牌。');
+}
+
 function openShopStop(
   G: GameState,
   playerId: PlayerID,
@@ -199,12 +218,15 @@ function resolveMovement(
   playerId: PlayerID,
   steps: number,
   source: string,
-  resumeStage: TurnStage
+  resumeStage: TurnStage,
+  options?: {
+    skipPassedShops?: boolean;
+  }
 ): void {
   const player = G.players[playerId];
   const from = player.position;
   const target = Math.min(player.position + Math.max(0, steps), G.board.totalTiles - 1);
-  const shopStopIndex = findFirstShopStopIndex(G, from, target);
+  const shopStopIndex = resolveShopStopIndex(G, from, target, options?.skipPassedShops ?? false);
 
   if (shopStopIndex !== null) {
     const stepsToShop = shopStopIndex - from;
@@ -245,7 +267,10 @@ function resolvePendingMovementIfNeeded(
   events: EventsAPI,
   playerId: PlayerID,
   source: string,
-  resumeStage: TurnStage
+  resumeStage: TurnStage,
+  options?: {
+    skipPassedShops?: boolean;
+  }
 ): void {
   if ((G.pendingMovement ?? 0) <= 0) {
     return;
@@ -255,7 +280,7 @@ function resolvePendingMovementIfNeeded(
   const pendingSource = G.pendingMovementSource ?? source;
   G.pendingMovement = null;
   G.pendingMovementSource = null;
-  resolveMovement(G, events, playerId, steps, pendingSource, resumeStage);
+  resolveMovement(G, events, playerId, steps, pendingSource, resumeStage, options);
 }
 
 function ensureStage(G: GameState, stage: TurnStage): boolean {
@@ -446,7 +471,9 @@ const useCard = (
 
   executeCardEffect(card, ctx.currentPlayer, targetPlayerId, G, ctx, usageArgs);
   player.handCards = player.handCards.filter((item) => item !== card);
-  resolvePendingMovementIfNeeded(G, events, ctx.currentPlayer, card.name, TurnStage.CARD);
+  resolvePendingMovementIfNeeded(G, events, ctx.currentPlayer, card.name, TurnStage.CARD, {
+    skipPassedShops: card.id === 'lingyun_ta'
+  });
 
   if (G.winnerTeam !== null) {
     return;
@@ -762,7 +789,7 @@ export const DamaqiGame: Game<GameState, Record<string, never>, SetupData> = {
     },
     onBegin: ({ G, ctx, events }) => {
       if (ctx.currentPlayer === '0') {
-        applyRoundIncome(G.players, 20);
+        applyRoundOpeningRewards(G);
       }
 
       startTurn(G, ctx.currentPlayer);

@@ -305,10 +305,14 @@ describe('opening economy', () => {
       currentPlayer: '0',
       turn: 1
     });
-    expect(state?.G.players['0'].gold).toBe(60);
-    expect(state?.G.players['1'].gold).toBe(60);
-    expect(state?.G.players['2'].gold).toBe(120);
-    expect(state?.G.players['3'].gold).toBe(60);
+    expect(state?.G.players['0'].gold).toBe(55);
+    expect(state?.G.players['1'].gold).toBe(55);
+    expect(state?.G.players['2'].gold).toBe(115);
+    expect(state?.G.players['3'].gold).toBe(55);
+    expect(state?.G.players['0'].handCards).toHaveLength(1);
+    expect(state?.G.players['1'].handCards).toHaveLength(1);
+    expect(state?.G.players['2'].handCards).toHaveLength(1);
+    expect(state?.G.players['3'].handCards).toHaveLength(1);
   });
 });
 
@@ -450,6 +454,41 @@ describe('card effects', () => {
     CardEffects.lingyun_ta(state, createCtx('0'), '0', undefined, { selectedSteps: 6 });
 
     expect(state.pendingMovement).toBe(6);
+  });
+
+  it('lingyun_ta passing through a shop does not open the shop', () => {
+    const state = createTestState();
+    state.turnStage = TurnStage.CARD;
+    state.players['0'].position = 8;
+    addCardsToHand(state.players['0'], [findCardDefinitionById('lingyun_ta')!]);
+
+    const { context } = createMoveContext(state, '0', '0');
+    const useCard = DamaqiGame.moves?.useCard as
+      | ((context: never, cardId: string, targetPlayerId?: string, usageArgs?: { selectedSteps?: number }) => void)
+      | undefined;
+
+    useCard?.(context, 'lingyun_ta', undefined, { selectedSteps: 6 });
+
+    expect(state.players['0'].position).toBe(14);
+    expect(state.pendingShop).toBe(false);
+    expect(state.currentShop).toEqual([]);
+  });
+
+  it('lingyun_ta landing exactly on a shop still opens the shop', () => {
+    const state = createTestState();
+    state.turnStage = TurnStage.CARD;
+    state.players['0'].position = 8;
+    addCardsToHand(state.players['0'], [findCardDefinitionById('lingyun_ta')!]);
+
+    const { context } = createMoveContext(state, '0', '0');
+    const useCard = DamaqiGame.moves?.useCard as
+      | ((context: never, cardId: string, targetPlayerId?: string, usageArgs?: { selectedSteps?: number }) => void)
+      | undefined;
+
+    useCard?.(context, 'lingyun_ta', undefined, { selectedSteps: 5 });
+
+    expect(state.players['0'].position).toBe(13);
+    expect(state.pendingShop).toBe(true);
   });
 
   it('shexing_nayue steals a random card from the target', () => {

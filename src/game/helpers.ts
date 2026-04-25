@@ -167,7 +167,7 @@ export function applyOpeningEconomy(players: Record<PlayerID, PlayerData>): void
   }
 }
 
-export function applyRoundIncome(players: Record<PlayerID, PlayerData>, amount = 20): void {
+export function applyRoundIncome(players: Record<PlayerID, PlayerData>, amount = 15): void {
   for (const player of Object.values(players)) {
     player.gold += amount;
   }
