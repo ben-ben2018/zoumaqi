@@ -561,15 +561,7 @@ const finishCardStage = ({ G, ctx, events }: MoveContext) => {
   if (!ensureStage(G, TurnStage.CARD)) {
     return;
   }
-
-  const player = G.players[ctx.currentPlayer];
-  if (player.hasUsedSkillThisTurn || player.activeSkillCooldown > 0) {
-    events?.endTurn?.();
-    return;
-  }
-
-  G.turnStage = TurnStage.SKILL;
-  syncActivePlayers(G, ctx, events);
+  events?.endTurn?.();
 };
 
 const useActiveSkill = ({ G, ctx, events }: MoveContext, targetPlayerId?: PlayerID) => {
@@ -760,8 +752,15 @@ export function runBotTurn(G: GameState, ctx: Ctx, events: EventsAPI): void {
         continue;
       }
 
+      const skillPlay = chooseAiSkillPlay(G, botPlayerId);
+      if (skillPlay) {
+        logBotSkillDecision(G, botPlayerId, skillPlay.targetPlayerId);
+        useActiveSkill(moveContext, skillPlay.targetPlayerId);
+        continue;
+      }
+
       finishCardStage(moveContext);
-      continue;
+      return;
     }
 
     if (G.turnStage === TurnStage.SKILL) {

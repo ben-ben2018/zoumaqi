@@ -322,6 +322,42 @@
   margin-bottom: 10px;
 }
 
+.buffSummary {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+}
+
+.buffList {
+  display: flex;
+  max-width: min(100%, 480px);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.buffChip,
+.buffEmpty {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid rgba(89, 69, 42, 0.12);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.buffChip {
+  background: rgba(228, 239, 209, 0.86);
+  color: #355126;
+}
+
+.buffEmpty {
+  background: rgba(245, 238, 226, 0.82);
+  color: #7a6550;
+}
+
 .actionBlock {
   grid-area: actions;
   align-self: stretch;

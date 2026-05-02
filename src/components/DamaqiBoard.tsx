@@ -10,7 +10,7 @@ import { PhaserBoard } from './PhaserBoard';
 import { ShopModal } from './ShopModal';
 import { getHandLimit, getSectLabel, getTeamLabel } from '../game/helpers';
 import type { GameActionRequest, MatchSnapshot } from '../multiplayer/protocol';
-import { PlayerStatus, PlayerTeam, Sect, SkillTarget, TurnStage, type CardData, type PlayerData } from '../types';
+import { PlayerStatus, PlayerTeam, Sect, SkillTarget, TurnStage, type CardData, type PlayerData, type TimedEffectState } from '../types';
 
 type DamaqiBoardProps = {
   match: MatchSnapshot;
@@ -42,6 +42,15 @@ type ToastState = {
 
 const TEAMMATE_ONLY_CARD_IDS = new Set(['youqian_renxing', 'paiyou_jienan']);
 const ENEMY_TARGET_SKILL_SECTS = new Set([Sect.LIYUAN, Sect.SANGENGTIAN, Sect.ZUIHUAYIN, Sect.JIULIUMEN]);
+const BUFF_LABELS: Record<string, string> = {
+  yinyang: '阴阳迷踪步',
+  shengcai: '生财有道',
+  miaoshou_recovery: '妙手回春',
+  jubaopen_roll: '聚宝盆',
+  mystery_roll_bonus: '奇遇增益',
+  kuanglan_charge: '千里奔袭',
+  rat_fate_self: '偷天换日'
+};
 
 const GAMEPLAY_TOAST_PATTERNS = [
   '触发奇遇',
@@ -106,12 +115,54 @@ function formatPlayerStatus(player: PlayerData): string {
   return '正常';
 }
 
+function formatBuffDetail(buffKey: string, effect: TimedEffectState): string | null {
+  switch (buffKey) {
+    case 'yinyang':
+      return `掷骰+${Number(effect.value)}`;
+    case 'shengcai':
+      return '移动得额外棋珍';
+    case 'miaoshou_recovery': {
+      const bonuses = ((effect.value as { bonuses?: number[] }).bonuses ?? []).filter((value) => typeof value === 'number');
+      if (bonuses.length === 0) {
+        return '下次掷骰增强';
+      }
+
+      const uniqueBonuses = Array.from(new Set(bonuses));
+      return uniqueBonuses.length === 1
+        ? `剩${bonuses.length}次 +${uniqueBonuses[0]}`
+        : `剩${bonuses.length}次 ${bonuses.map((bonus) => `+${bonus}`).join('/')}`;
+    }
+    case 'jubaopen_roll':
+      return `本回合掷骰+${Number(effect.value)}`;
+    case 'mystery_roll_bonus': {
+      const modifiers = (effect.value as { modifiers?: number[] }).modifiers ?? [];
+      const total = modifiers.reduce((sum, modifier) => sum + modifier, 0);
+      return `掷骰${total >= 0 ? '+' : ''}${total}`;
+    }
+    case 'kuanglan_charge':
+      return '掷骰随机-2~+6';
+    case 'rat_fate_self':
+      return '下次骰面改运';
+    default:
+      return null;
+  }
+}
+
+function formatBuffSummary(buffKey: string, effect: TimedEffectState): string {
+  const label = BUFF_LABELS[buffKey] ?? buffKey;
+  const detail = formatBuffDetail(buffKey, effect);
+  const duration = `${effect.remainingTurns}回合`;
+  return detail ? `${label} · ${detail} · ${duration}` : `${label} · ${duration}`;
+}
+
 export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onAction, onViewPlayerChange }: DamaqiBoardProps) {
   const { G, ctx } = match;
   const currentPlayer = G.players[ctx.currentPlayer];
   const actualHumanPlayerId = controllablePlayerID ?? null;
   const effectivePlayerId = viewPlayerID ?? actualHumanPlayerId ?? ctx.currentPlayer;
   const myPlayer = G.players[effectivePlayerId] ?? currentPlayer;
+  const buffOwner = (actualHumanPlayerId && G.players[actualHumanPlayerId]) || myPlayer;
+  const activeBuffs = Object.entries(buffOwner.buffs);
   const [pendingCardAction, setPendingCardAction] = useState<PendingCardAction>(null);
   const [pendingTargetAction, setPendingTargetAction] = useState<PendingTargetAction>(null);
   const [isBroadcastOpen, setIsBroadcastOpen] = useState(false);
@@ -407,7 +458,20 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
           <div className={styles.handHeader}>
             <div>
               <p className={styles.sectionKicker}>手牌区</p>
-              <h2 className={styles.sectionTitle}>当前视角：{myPlayer.name}</h2>
+            </div>
+            <div className={styles.buffSummary}>
+              <p className={styles.sectionKicker}>当前 Buff</p>
+              <div className={styles.buffList}>
+                {activeBuffs.length > 0 ? (
+                  activeBuffs.map(([buffKey, effect]) => (
+                    <span key={buffKey} className={styles.buffChip}>
+                      {formatBuffSummary(buffKey, effect)}
+                    </span>
+                  ))
+                ) : (
+                  <span className={styles.buffEmpty}>当前没有增益效果</span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -429,22 +493,16 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
 
           <div className={styles.quickActions}>
             <Button
-              className={clsx(styles.quickButton, G.turnStage === TurnStage.CARD && styles.quickButtonActive)}
-              disabled={areActionButtonsDisabled || G.turnStage !== TurnStage.CARD}
-              onClick={() => onAction({ type: 'finishCardStage' })}
+              className={clsx(
+                styles.quickButton,
+                [TurnStage.CARD, TurnStage.SKILL].includes(G.turnStage) && styles.quickButtonActive
+              )}
+              disabled={areActionButtonsDisabled || ![TurnStage.CARD, TurnStage.SKILL].includes(G.turnStage)}
+              onClick={() => onAction({ type: G.turnStage === TurnStage.SKILL ? 'finishSkillStage' : 'finishCardStage' })}
               type="button"
-              variant={G.turnStage === TurnStage.CARD ? 'active' : 'secondary'}
+              variant={[TurnStage.CARD, TurnStage.SKILL].includes(G.turnStage) ? 'active' : 'secondary'}
             >
-              结束出牌
-            </Button>
-            <Button
-              className={clsx(styles.quickButton, G.turnStage === TurnStage.SKILL && styles.quickButtonActive)}
-              disabled={areActionButtonsDisabled || G.turnStage !== TurnStage.SKILL}
-              onClick={() => onAction({ type: 'finishSkillStage' })}
-              type="button"
-              variant={G.turnStage === TurnStage.SKILL ? 'active' : 'secondary'}
-            >
-              跳过技能
+              结束回合
             </Button>
             <Button
               className={styles.skillButton}

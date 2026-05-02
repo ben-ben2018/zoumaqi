@@ -669,7 +669,20 @@ describe('sect skills', () => {
     expect(state.turnStage).toBe(TurnStage.ROLL);
   });
 
-  it('finishing card stage ends the turn directly when the skill was already used earlier this turn', () => {
+  it('finishing card stage ends the turn directly when the skill is still available', () => {
+    const state = createTestState();
+    state.turnStage = TurnStage.CARD;
+
+    const finish = createMoveContext(state, '0', '0');
+    const finishCardStage = DamaqiGame.moves?.finishCardStage as ((context: never) => void) | undefined;
+
+    finishCardStage?.(finish.context);
+
+    expect(finish.events.endTurn).toHaveBeenCalledTimes(1);
+    expect(state.turnStage).toBe(TurnStage.CARD);
+  });
+
+  it('finishing card stage still ends the turn directly when the skill was already used earlier this turn', () => {
     const state = createTestState();
     state.turnStage = TurnStage.CARD;
     state.players['0'].hasUsedSkillThisTurn = true;
