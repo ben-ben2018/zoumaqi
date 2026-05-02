@@ -203,7 +203,11 @@ export function DamaqiBoard({
     previousTurnPlayerRef.current.playerId === ctx.currentPlayer &&
     previousTurnPlayerRef.current.position !== currentPlayer.position;
   const shouldShowShopModal =
-    G.pendingShop && !didCurrentPlayerPositionChange && waitingForShopArrivalKey !== shopArrivalKey;
+    G.pendingShop &&
+    isHumanTurn &&
+    isViewingHumanSeat &&
+    !didCurrentPlayerPositionChange &&
+    waitingForShopArrivalKey !== shopArrivalKey;
 
   useEffect(() => {
     if (![TurnStage.ROLL, TurnStage.CARD].includes(G.turnStage) || !isHumanTurn || !isViewingHumanSeat) {
