@@ -21,7 +21,7 @@
   z-index: 10;
   display: grid;
   height: 100%;
-  padding: 82px 14px 14px;
+  padding: 14px 14px 14px;
   grid-template-columns: minmax(0, 1fr) clamp(232px, 24vw, 292px);
   grid-template-areas:
     'players players'
@@ -67,15 +67,34 @@
   pointer-events: auto;
 }
 
+.broadcastActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .broadcastButton {
   min-width: 110px;
   padding: 10px 14px;
   box-shadow: 0 12px 24px rgba(73, 55, 28, 0.12);
 }
 
-.logPanel {
+.logPanel,
+.connectionPanel {
   width: min(420px, calc(100vw - 28px));
   max-height: min(46dvh, 360px);
+}
+
+.connectionPanelInner {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(89, 69, 42, 0.14);
+  border-radius: 18px;
+  background: rgba(255, 250, 241, 0.74);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 12px 30px rgba(73, 55, 28, 0.1);
 }
 
 .logPanelHeader {
@@ -88,6 +107,25 @@
 .logCloseButton {
   padding: 6px 10px;
   font-size: 0.74rem;
+}
+
+.connectionTitle {
+  margin: 0;
+  color: #312619;
+  font-family: 'FZCJLJT', 'Noto Serif SC', 'Songti SC', serif;
+  font-size: 1.04rem;
+}
+
+.connectionInfoList {
+  display: grid;
+  gap: 6px;
+}
+
+.connectionInfoItem {
+  margin: 0;
+  color: #4d3b2a;
+  font-size: 0.84rem;
+  line-height: 1.45;
 }
 
 .sectionKicker {
@@ -195,6 +233,7 @@
   min-height: 0;
   width: 100%;
   max-width: 100%;
+  padding-right: clamp(260px, 34vw, 420px);
 }
 
 .playerTableWrap {
@@ -469,13 +508,14 @@
   }
 
   .hudLayer {
-    padding: 78px 12px 12px;
+    padding: 12px 12px 12px;
     grid-template-columns: minmax(0, 1fr) minmax(190px, 31vw);
     gap: 10px;
   }
 
   .playerDock {
     max-width: min(100%, 540px);
+    padding-right: min(300px, 44vw);
   }
 
   .quickActions {
@@ -493,7 +533,7 @@
   }
 
   .hudLayer {
-    padding: 72px 10px 10px;
+    padding: 10px 10px 10px;
     grid-template-columns: minmax(0, 1fr) 148px;
     gap: 8px;
   }
@@ -515,6 +555,10 @@
 
   .playerTable {
     font-size: 0.64rem;
+  }
+
+  .playerDock {
+    padding-right: 0;
   }
 
   .playerTable th,

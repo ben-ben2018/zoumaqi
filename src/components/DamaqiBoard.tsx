@@ -15,7 +15,11 @@ import { PlayerStatus, PlayerTeam, Sect, SkillTarget, TurnStage, type CardData, 
 type DamaqiBoardProps = {
   match: MatchSnapshot;
   controllablePlayerID?: string | null;
+  connectionStateLabel?: string;
+  onLeaveRoom?: () => void;
   viewPlayerID?: string | null;
+  roomCode?: string;
+  roomStatusLabel?: string;
   onAction: (action: GameActionRequest) => void;
   onViewPlayerChange?: (playerID: string) => void;
 };
@@ -155,7 +159,17 @@ function formatBuffSummary(buffKey: string, effect: TimedEffectState): string {
   return detail ? `${label} · ${detail} · ${duration}` : `${label} · ${duration}`;
 }
 
-export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onAction, onViewPlayerChange }: DamaqiBoardProps) {
+export function DamaqiBoard({
+  match,
+  controllablePlayerID,
+  connectionStateLabel,
+  onLeaveRoom,
+  viewPlayerID,
+  roomCode,
+  roomStatusLabel,
+  onAction,
+  onViewPlayerChange
+}: DamaqiBoardProps) {
   const { G, ctx } = match;
   const currentPlayer = G.players[ctx.currentPlayer];
   const actualHumanPlayerId = controllablePlayerID ?? null;
@@ -166,6 +180,7 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
   const [pendingCardAction, setPendingCardAction] = useState<PendingCardAction>(null);
   const [pendingTargetAction, setPendingTargetAction] = useState<PendingTargetAction>(null);
   const [isBroadcastOpen, setIsBroadcastOpen] = useState(false);
+  const [isConnectionOpen, setIsConnectionOpen] = useState(false);
   const [gameplayToast, setGameplayToast] = useState<ToastState>(null);
   const toastIdRef = useRef(0);
   const lastToastMessageRef = useRef<string | null>(G.actionLog[0] ?? null);
@@ -350,14 +365,33 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
 
       <div className={styles.hudLayer}>
         <div className={styles.broadcastDock}>
-          <Button
-            className={styles.broadcastButton}
-            onClick={() => setIsBroadcastOpen((current) => !current)}
-            type="button"
-            variant={isBroadcastOpen ? 'active' : 'secondary'}
-          >
-            棋局播报
-          </Button>
+          <div className={styles.broadcastActions}>
+            <Button
+              className={styles.broadcastButton}
+              onClick={() => setIsBroadcastOpen((current) => !current)}
+              type="button"
+              variant={isBroadcastOpen ? 'active' : 'secondary'}
+            >
+              棋局播报
+            </Button>
+            <Button
+              className={styles.broadcastButton}
+              onClick={() => setIsConnectionOpen((current) => !current)}
+              type="button"
+              variant={isConnectionOpen ? 'active' : 'secondary'}
+            >
+              连接状态
+            </Button>
+            <Button
+              className={styles.broadcastButton}
+              disabled={!onLeaveRoom}
+              onClick={() => onLeaveRoom?.()}
+              type="button"
+              variant="secondary"
+            >
+              退出房间
+            </Button>
+          </div>
 
           {isBroadcastOpen && (
             <div className={styles.logPanel}>
@@ -384,6 +418,32 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
               </div>
             </div>
           )}
+
+          {isConnectionOpen && (
+            <div className={styles.connectionPanel}>
+              <div className={styles.connectionPanelInner}>
+                <div className={styles.logPanelHeader}>
+                  <div>
+                    <p className={styles.sectionKicker}>连接状态</p>
+                    <h3 className={styles.connectionTitle}>当前房间信息</h3>
+                  </div>
+                  <Button
+                    className={styles.logCloseButton}
+                    onClick={() => setIsConnectionOpen(false)}
+                    type="button"
+                    variant="secondary"
+                  >
+                    收起
+                  </Button>
+                </div>
+                <div className={styles.connectionInfoList}>
+                  <p className={styles.connectionInfoItem}>房间：{roomCode ?? '-'}</p>
+                  <p className={styles.connectionInfoItem}>对局状态：{roomStatusLabel ?? '-'}</p>
+                  <p className={styles.connectionInfoItem}>连接：{connectionStateLabel ?? '-'}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className={styles.playerDock}>
@@ -401,13 +461,6 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
               </thead>
               <tbody>
                 {Object.values(G.players).map((player) => {
-                  const buffCount = Object.keys(player.buffs).length;
-                  const rowState = [
-                    buffCount > 0 ? `Buff ${buffCount}` : null
-                  ]
-                    .filter(Boolean)
-                    .join(' · ');
-
                   return (
                     <tr
                       key={player.id}
@@ -433,9 +486,6 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
                             <span className={styles.playerNameText}>
                               {player.name} {player.isBot ? '(AI)' : ''}
                             </span>
-                          </span>
-                          <span className={styles.playerMeta}>
-                            {rowState || ' '}
                           </span>
                         </div>
                       </td>

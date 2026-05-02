@@ -500,30 +500,19 @@ export default function App() {
     return (
       <main className={styles.shell}>
         <section className={styles.clientFrame}>
-          <div className="absolute left-4 top-4 z-40 flex flex-wrap gap-3">
-            <span className="rounded-full bg-[rgba(255,251,241,0.88)] px-4 py-2 text-sm text-ink-700 shadow-paper">
-              房间 {room.roomCode} · {room.status === 'finished' ? '已结算' : '对局中'}
-            </span>
-            <span className="rounded-full bg-[rgba(255,251,241,0.88)] px-4 py-2 text-sm text-ink-700 shadow-paper">
-              连接 {formatStatus(connectionState)}
-            </span>
-            <Button
-              className="px-4 py-2 text-sm shadow-paper"
-              onClick={() => leaveRoom()}
-              type="button"
-              variant="secondary"
-            >
-              退出房间
-            </Button>
-          </div>
-
           <DamaqiBoard
+            connectionStateLabel={formatStatus(connectionState)}
             controllablePlayerID={mySeatId === null ? null : String(mySeatId)}
             match={room.match}
             onAction={(action) => {
               void sendGameAction(action);
             }}
+            onLeaveRoom={() => {
+              void leaveRoom();
+            }}
             onViewPlayerChange={setViewSeatId}
+            roomCode={room.roomCode}
+            roomStatusLabel={room.status === 'finished' ? '已结算' : '对局中'}
             viewPlayerID={viewSeatId}
           />
 
