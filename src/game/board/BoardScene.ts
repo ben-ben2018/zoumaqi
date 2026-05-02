@@ -19,6 +19,7 @@ type TokenDisplay = {
   core: Phaser.GameObjects.Arc;
   label: Phaser.GameObjects.Text;
   logicalPosition: number;
+  movementTween: Phaser.Tweens.Tween | null;
 };
 
 function comparePlayers(left: PlayerData, right: PlayerData): number {
@@ -85,6 +86,7 @@ export class BoardScene extends Phaser.Scene {
   private viewportWidth = BOARD_CANVAS_WIDTH;
   private viewportHeight = BOARD_CANVAS_HEIGHT;
   private textResolution = 1;
+  private onPlayerArrive?: (playerId: string, position: number) => void;
 
   constructor() {
     super(BOARD_SCENE_KEY);
@@ -139,6 +141,10 @@ export class BoardScene extends Phaser.Scene {
     }
 
     this.renderSnapshot(snapshot);
+  }
+
+  setPlayerArrivalListener(listener?: (playerId: string, position: number) => void) {
+    this.onPlayerArrive = listener;
   }
 
   private applyViewportLayout() {
@@ -288,11 +294,15 @@ export class BoardScene extends Phaser.Scene {
       display.label.setText(getBoardPlayerLabel(player));
 
       if (display.logicalPosition === player.position) {
+        if (display.movementTween) {
+          return;
+        }
+
         if (Math.abs(display.root.x - targetX) > 0.1 || Math.abs(display.root.y - targetY) > 0.1) {
           display.root.setPosition(targetX, targetY);
         }
       } else {
-        this.animateTokenAlongTiles(display, tiles, display.logicalPosition, player.position, index);
+        this.animateTokenAlongTiles(display, tiles, display.logicalPosition, player.position, index, player.id);
       }
 
       display.logicalPosition = player.position;
@@ -303,6 +313,8 @@ export class BoardScene extends Phaser.Scene {
         return;
       }
 
+      display.movementTween?.stop();
+      display.movementTween = null;
       this.tweens.killTweensOf(display.root);
       display.root.destroy(true);
       this.tokenDisplays.delete(tokenId);
@@ -336,7 +348,8 @@ export class BoardScene extends Phaser.Scene {
       shadow,
       core,
       label,
-      logicalPosition: player.position
+      logicalPosition: player.position,
+      movementTween: null
     };
 
     this.tokenDisplays.set(player.id, display);
@@ -348,7 +361,8 @@ export class BoardScene extends Phaser.Scene {
     tiles: TileData[],
     fromIndex: number,
     toIndex: number,
-    playerIndex: number
+    playerIndex: number,
+    playerId: string
   ) {
     const safeFromIndex = Phaser.Math.Clamp(fromIndex, 0, tiles.length - 1);
     const safeToIndex = Phaser.Math.Clamp(toIndex, 0, tiles.length - 1);
@@ -361,9 +375,12 @@ export class BoardScene extends Phaser.Scene {
       display.root.setPosition(tile.x + offset.x, tile.y + offset.y);
       display.body.setY(0);
       display.shadow.setScale(1, 1);
+      display.movementTween = null;
       return;
     }
 
+    display.movementTween?.stop();
+    display.movementTween = null;
     this.tweens.killTweensOf(display.root);
     this.tweens.killTweensOf(display.body);
     this.tweens.killTweensOf(display.shadow);
@@ -408,6 +425,8 @@ export class BoardScene extends Phaser.Scene {
       if (!step) {
         display.body.setY(0);
         display.shadow.setScale(1, 1);
+        display.movementTween = null;
+        this.onPlayerArrive?.(playerId, safeToIndex);
         return;
       }
 
@@ -415,7 +434,7 @@ export class BoardScene extends Phaser.Scene {
         progress: 0
       };
 
-      this.tweens.add({
+      display.movementTween = this.tweens.add({
         targets: progressState,
         progress: 1,
         duration: step.duration,

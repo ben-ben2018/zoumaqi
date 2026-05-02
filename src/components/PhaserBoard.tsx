@@ -9,6 +9,7 @@ type PhaserBoardProps = {
   tiles: TileData[];
   players: PlayerData[];
   currentPlayerId: string;
+  onPlayerArrive?: (playerId: string, position: number) => void;
 };
 
 const MAX_RENDER_RESOLUTION = 2;
@@ -31,7 +32,7 @@ function getHostViewport(host: HTMLDivElement) {
   };
 }
 
-export function PhaserBoard({ tiles, players, currentPlayerId }: PhaserBoardProps) {
+export function PhaserBoard({ tiles, players, currentPlayerId, onPlayerArrive }: PhaserBoardProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
   const sceneRef = useRef<BoardScene | null>(null);
@@ -43,6 +44,7 @@ export function PhaserBoard({ tiles, players, currentPlayerId }: PhaserBoardProp
     }
 
     const scene = new BoardScene();
+    scene.setPlayerArrivalListener(onPlayerArrive);
     sceneRef.current = scene;
     const initialViewport = getHostViewport(host);
 
@@ -93,6 +95,10 @@ export function PhaserBoard({ tiles, players, currentPlayerId }: PhaserBoardProp
       gameRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    sceneRef.current?.setPlayerArrivalListener(onPlayerArrive);
+  }, [onPlayerArrive]);
 
   useEffect(() => {
     sceneRef.current?.syncState({

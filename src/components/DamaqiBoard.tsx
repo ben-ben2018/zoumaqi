@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 
 import { Button } from './Button';
@@ -118,6 +118,8 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
   const [gameplayToast, setGameplayToast] = useState<ToastState>(null);
   const toastIdRef = useRef(0);
   const lastToastMessageRef = useRef<string | null>(G.actionLog[0] ?? null);
+  const previousTurnPlayerRef = useRef<{ playerId: string; position: number } | null>(null);
+  const [waitingForShopArrivalKey, setWaitingForShopArrivalKey] = useState<string | null>(null);
 
   const activePendingDiscard = G.pendingDiscards[0] ?? null;
   const pendingDiscardPlayer = activePendingDiscard ? G.players[activePendingDiscard.playerId] : null;
@@ -129,6 +131,13 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
   const isHumanTurn = Boolean(actualHumanPlayerId && actualHumanPlayerId === ctx.currentPlayer);
   const isViewingHumanSeat = Boolean(actualHumanPlayerId && effectivePlayerId === actualHumanPlayerId);
   const areActionButtonsDisabled = !isHumanTurn || !isViewingHumanSeat || isForcedDiscardActive;
+  const shopArrivalKey = G.pendingShop ? `${ctx.currentPlayer}:${currentPlayer.position}` : null;
+  const didCurrentPlayerPositionChange =
+    previousTurnPlayerRef.current !== null &&
+    previousTurnPlayerRef.current.playerId === ctx.currentPlayer &&
+    previousTurnPlayerRef.current.position !== currentPlayer.position;
+  const shouldShowShopModal =
+    G.pendingShop && !didCurrentPlayerPositionChange && waitingForShopArrivalKey !== shopArrivalKey;
 
   useEffect(() => {
     if (![TurnStage.ROLL, TurnStage.CARD].includes(G.turnStage) || !isHumanTurn || !isViewingHumanSeat) {
@@ -166,6 +175,29 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
       message: latestMessage
     });
   }, [G.actionLog]);
+
+  useLayoutEffect(() => {
+    if (!G.pendingShop || !shopArrivalKey) {
+      setWaitingForShopArrivalKey(null);
+      return;
+    }
+
+    if (didCurrentPlayerPositionChange) {
+      setWaitingForShopArrivalKey(shopArrivalKey);
+    }
+  }, [G.pendingShop, didCurrentPlayerPositionChange, shopArrivalKey]);
+
+  useEffect(() => {
+    previousTurnPlayerRef.current = {
+      playerId: ctx.currentPlayer,
+      position: currentPlayer.position
+    };
+  }, [ctx.currentPlayer, currentPlayer.position]);
+
+  const handleCurrentPlayerArrival = (playerId: string, position: number) => {
+    const arrivalKey = `${playerId}:${position}`;
+    setWaitingForShopArrivalKey((current) => (current === arrivalKey ? null : current));
+  };
 
   const handleUseCard = (cardId: string) => {
     const card = myPlayer.handCards.find((item) => item.id === cardId);
@@ -257,7 +289,12 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
       <GlobalToast onDone={() => setGameplayToast(null)} toast={gameplayToast} />
 
       <section className={styles.boardSurface}>
-        <PhaserBoard tiles={G.board.tiles} players={Object.values(G.players)} currentPlayerId={ctx.currentPlayer} />
+        <PhaserBoard
+          currentPlayerId={ctx.currentPlayer}
+          onPlayerArrive={handleCurrentPlayerArrival}
+          players={Object.values(G.players)}
+          tiles={G.board.tiles}
+        />
       </section>
 
       <div className={styles.hudLayer}>
@@ -428,7 +465,7 @@ export function DamaqiBoard({ match, controllablePlayerID, viewPlayerID, onActio
         </aside>
       </div>
 
-      {G.pendingShop && (
+      {shouldShowShopModal && (
         <ShopModal
           cards={G.currentShop}
           playerGold={currentPlayer.gold}
