@@ -53,6 +53,18 @@ export enum TurnStage {
   DISCARD = 'discard'
 }
 
+export type AiMode = 'rules' | 'llm';
+
+export interface LlmModelSelection {
+  providerName: string;
+  modelId: string;
+}
+
+export interface AiPlayerControl {
+  mode: AiMode;
+  llm?: LlmModelSelection | null;
+}
+
 export interface TimedEffectState {
   remainingTurns: number;
   value: unknown;
@@ -115,6 +127,7 @@ export interface SetupData {
   sects?: Sect[];
   playerNames?: string[];
   botPlayerIds?: PlayerID[];
+  aiControls?: Record<PlayerID, AiPlayerControl>;
 }
 
 export interface PendingDiscardState {
@@ -124,6 +137,7 @@ export interface PendingDiscardState {
 
 export interface GameState {
   players: Record<PlayerID, PlayerData>;
+  aiControls?: Record<PlayerID, AiPlayerControl>;
   board: BoardData;
   currentShop: CardData[];
   pendingShop: boolean;

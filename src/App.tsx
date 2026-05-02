@@ -46,6 +46,7 @@ export default function App() {
     claimSeat,
     leaveSeat,
     setSect,
+    setSeatAi,
     updateRoomSettings,
     kickMember,
     startGame,
@@ -345,6 +346,11 @@ export default function App() {
                   const shouldShowSectLabel = Boolean(occupant && !isMine && seat.sect !== null);
                   const shouldShowSectSelect = isMine && seat.sect !== null;
                   const selectedSect = seat.sect ?? undefined;
+                  const selectedProvider =
+                    seat.llmProviderName ?? room.llmOptions[0]?.providerName ?? '';
+                  const providerOption = room.llmOptions.find((option) => option.providerName === selectedProvider) ?? room.llmOptions[0];
+                  const selectedModel = seat.llmModelId ?? providerOption?.modelIds[0] ?? '';
+                  const canConfigureAi = isHost && !occupant;
 
                   return (
                     <article
@@ -381,6 +387,74 @@ export default function App() {
                             </option>
                           ))}
                         </select>
+                      )}
+
+                      {canConfigureAi && (
+                        <div className="mt-4 grid gap-3 rounded-[16px] border border-ink-700/10 bg-white/45 p-3">
+                          <select
+                            className="w-full rounded-[14px] border border-ink-700/12 bg-white/80 px-3 py-3 text-sm text-ink-900"
+                            onChange={(event) => {
+                              const aiMode = event.target.value === 'llm' ? 'llm' : 'rules';
+                              void setSeatAi({
+                                seatId: seat.id,
+                                aiMode,
+                                providerName: aiMode === 'llm' ? selectedProvider : undefined,
+                                modelId: aiMode === 'llm' ? selectedModel : undefined
+                              });
+                            }}
+                            value={seat.aiMode}
+                          >
+                            <option value="rules">规则 AI</option>
+                            <option disabled={room.llmOptions.length === 0} value="llm">
+                              LLM
+                            </option>
+                          </select>
+
+                          {seat.aiMode === 'llm' && (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <select
+                                className="w-full rounded-[14px] border border-ink-700/12 bg-white/80 px-3 py-3 text-sm text-ink-900"
+                                disabled={room.llmOptions.length === 0}
+                                onChange={(event) => {
+                                  const nextProvider = room.llmOptions.find((option) => option.providerName === event.target.value);
+                                  void setSeatAi({
+                                    seatId: seat.id,
+                                    aiMode: 'llm',
+                                    providerName: nextProvider?.providerName,
+                                    modelId: nextProvider?.modelIds[0]
+                                  });
+                                }}
+                                value={selectedProvider}
+                              >
+                                {room.llmOptions.map((option) => (
+                                  <option key={option.providerName} value={option.providerName}>
+                                    {option.providerName}
+                                  </option>
+                                ))}
+                              </select>
+
+                              <select
+                                className="w-full rounded-[14px] border border-ink-700/12 bg-white/80 px-3 py-3 text-sm text-ink-900"
+                                disabled={!providerOption}
+                                onChange={(event) => {
+                                  void setSeatAi({
+                                    seatId: seat.id,
+                                    aiMode: 'llm',
+                                    providerName: selectedProvider,
+                                    modelId: event.target.value
+                                  });
+                                }}
+                                value={selectedModel}
+                              >
+                                {(providerOption?.modelIds ?? []).map((modelId) => (
+                                  <option key={modelId} value={modelId}>
+                                    {modelId}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
                       )}
 
                       <div className="mt-4 flex gap-3">

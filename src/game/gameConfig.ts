@@ -800,6 +800,7 @@ export const DamaqiGame: Game<GameState, Record<string, never>, SetupData> = {
       pendingMovement: null,
       pendingMovementSource: null,
       turnStage: TurnStage.ROLL,
+      aiControls: setupData?.aiControls ?? {},
       actionLog: ['棋局已布设，等待首位玩家掷骰。'],
       winnerTeam: null,
       turnMessage: '棋局已布设，等待首位玩家掷骰。'
@@ -880,7 +881,7 @@ export const DamaqiGame: Game<GameState, Record<string, never>, SetupData> = {
       appendLog(G, `轮到 ${player.name}（${player.team === 0 ? '赤队' : '青队'}）行动。`);
       syncActivePlayers(G, ctx, events);
 
-      if (player.isBot && G.winnerTeam === null) {
+      if (player.isBot && (G.aiControls?.[ctx.currentPlayer]?.mode ?? 'rules') === 'rules' && G.winnerTeam === null) {
         runBotTurn(G, ctx, events);
       }
     },

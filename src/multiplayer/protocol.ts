@@ -1,6 +1,6 @@
 import type { PlayerID } from 'boardgame.io';
 
-import { TurnStage, type CardUsageArgs, type GameState, type Sect } from '../types';
+import { TurnStage, type AiMode, type CardUsageArgs, type GameState, type Sect } from '../types';
 
 export type RoomStatus = 'lobby' | 'in_game' | 'finished';
 export type SeatID = 0 | 1 | 2 | 3;
@@ -35,6 +35,14 @@ export interface RoomSeatSnapshot {
   memberName: string | null;
   sect: Sect | null;
   isBot: boolean;
+  aiMode: AiMode;
+  llmProviderName: string | null;
+  llmModelId: string | null;
+}
+
+export interface LlmProviderOption {
+  providerName: string;
+  modelIds: string[];
 }
 
 export interface MatchContextSnapshot {
@@ -57,6 +65,7 @@ export interface RoomSnapshot {
   updatedAt: number;
   members: RoomMemberSnapshot[];
   seats: RoomSeatSnapshot[];
+  llmOptions: LlmProviderOption[];
   match: MatchSnapshot | null;
 }
 
@@ -83,6 +92,13 @@ export interface SetSectPayload {
   sect: Sect;
 }
 
+export interface SetSeatAiPayload {
+  seatId: SeatID;
+  aiMode: AiMode;
+  providerName?: string;
+  modelId?: string;
+}
+
 export interface KickMemberPayload {
   memberId: string;
 }
@@ -90,6 +106,10 @@ export interface KickMemberPayload {
 export type GameActionRequest =
   | {
       type: 'rollDice';
+    }
+  | {
+      type: 'movePlayer';
+      steps?: number;
     }
   | {
       type: 'buyCard';
@@ -127,6 +147,7 @@ export interface ClientToServerEvents {
   'room:claimSeat': (payload: ClaimSeatPayload, callback: (result: OperationResult) => void) => void;
   'room:leaveSeat': (callback: (result: OperationResult) => void) => void;
   'room:setSect': (payload: SetSectPayload, callback: (result: OperationResult) => void) => void;
+  'room:setSeatAi': (payload: SetSeatAiPayload, callback: (result: OperationResult) => void) => void;
   'room:updateSettings': (payload: UpdateRoomSettingsPayload, callback: (result: OperationResult) => void) => void;
   'room:kickMember': (payload: KickMemberPayload, callback: (result: OperationResult) => void) => void;
   'room:startGame': (callback: (result: OperationResult) => void) => void;

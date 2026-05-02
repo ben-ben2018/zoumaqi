@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { PlayerID } from 'boardgame.io';
 import type { Server, Socket } from 'socket.io';
 
-import { Sect, type SetupData } from '../types';
+import { Sect, type AiMode, type AiPlayerControl, type LlmModelSelection, type SetupData } from '../types';
 import {
   ROOM_CLEANUP_INTERVAL_MS,
   ROOM_IDLE_TIMEOUT_MS,
@@ -22,11 +22,14 @@ import {
   type RoomStatus,
   type SeatID,
   type ServerToClientEvents,
+  type SetSeatAiPayload,
   type SetSectPayload,
   type SocketData,
   type UpdateRoomSettingsPayload
 } from '../multiplayer/protocol';
 import { ServerGameSession } from './gameSession';
+import { decideLlmAction } from './llm/decision';
+import { getDefaultLlmSelection, getPublicLlmOptions, isValidLlmSelection } from './llm/config';
 
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
@@ -57,6 +60,8 @@ interface RoomSeatState {
   memberId: string | null;
   sect: Sect | null;
   isBot: boolean;
+  aiMode: AiMode;
+  llmSelection: LlmModelSelection | null;
 }
 
 interface RoomState {
@@ -70,6 +75,16 @@ interface RoomState {
   members: Map<string, RoomMember>;
   seats: RoomSeatState[];
   match: ServerGameSession | null;
+}
+
+function serializeProgressSnapshot(match: ServerGameSession): string {
+  const snapshot = match.getSnapshot();
+  const { actionLog: _actionLog, turnMessage: _turnMessage, ...progressState } = snapshot.G;
+
+  return JSON.stringify({
+    G: progressState,
+    ctx: snapshot.ctx
+  });
 }
 
 function normalizeName(name: string): string {
@@ -90,7 +105,9 @@ function createDefaultSeats(): RoomSeatState[] {
     id: id as SeatID,
     memberId: null,
     sect: null,
-    isBot: true
+    isBot: true,
+    aiMode: 'rules',
+    llmSelection: null
   }));
 }
 
@@ -100,6 +117,8 @@ function toPlayerId(seatId: SeatID): PlayerID {
 
 export class RoomManager {
   private readonly rooms = new Map<string, RoomState>();
+
+  private readonly automationRooms = new Set<string>();
 
   private readonly cleanupTimer: NodeJS.Timeout;
 
@@ -141,6 +160,10 @@ export class RoomManager {
 
       socket.on('room:setSect', (payload, callback) => {
         callback(this.handleSetSect(socket, payload));
+      });
+
+      socket.on('room:setSeatAi', (payload, callback) => {
+        callback(this.handleSetSeatAi(socket, payload));
       });
 
       socket.on('room:updateSettings', (payload, callback) => {
@@ -326,6 +349,8 @@ export class RoomManager {
 
     seat.memberId = member.id;
     seat.isBot = false;
+    seat.aiMode = 'rules';
+    seat.llmSelection = null;
     seat.sect = seat.sect ?? this.getDefaultHumanSect(payload.seatId);
     member.seatId = payload.seatId;
     room.updatedAt = Date.now();
@@ -395,6 +420,82 @@ export class RoomManager {
     room.seats[member.seatId].sect = payload.sect;
     room.updatedAt = Date.now();
     this.emitRoomSnapshots(room);
+    return {
+      ok: true
+    };
+  }
+
+  private handleSetSeatAi(socket: TypedSocket, payload: SetSeatAiPayload): OperationResult {
+    const room = this.getRoomForSocket(socket);
+    const member = this.getMemberForSocket(socket, room);
+    if (!room || !member) {
+      return this.notInRoom();
+    }
+
+    if (room.hostMemberId !== member.id) {
+      return {
+        ok: false,
+        error: '只有房主可以设置 AI。'
+      };
+    }
+
+    if (room.status !== 'lobby') {
+      return {
+        ok: false,
+        error: '开局后不能再修改 AI。'
+      };
+    }
+
+    if (!isSeatId(payload.seatId)) {
+      return {
+        ok: false,
+        error: '无效座位。'
+      };
+    }
+
+    const seat = room.seats[payload.seatId];
+    if (!seat || seat.memberId) {
+      return {
+        ok: false,
+        error: '只能设置空置的 AI 座位。'
+      };
+    }
+
+    if (payload.aiMode === 'rules') {
+      seat.aiMode = 'rules';
+      seat.llmSelection = null;
+      room.updatedAt = Date.now();
+      this.emitRoomSnapshots(room);
+      return {
+        ok: true
+      };
+    }
+
+    if (payload.aiMode !== 'llm') {
+      return {
+        ok: false,
+        error: '未知 AI 模式。'
+      };
+    }
+
+    const fallbackSelection = getDefaultLlmSelection();
+    const providerName = payload.providerName ?? fallbackSelection?.providerName;
+    const modelId = payload.modelId ?? fallbackSelection?.modelId;
+    if (!providerName || !modelId || !isValidLlmSelection(providerName, modelId)) {
+      return {
+        ok: false,
+        error: 'LLM 提供商或模型不可用。'
+      };
+    }
+
+    seat.aiMode = 'llm';
+    seat.llmSelection = {
+      providerName,
+      modelId
+    };
+    room.updatedAt = Date.now();
+    this.emitRoomSnapshots(room);
+
     return {
       ok: true
     };
@@ -498,7 +599,8 @@ export class RoomManager {
         seat.sect = resolvedSect;
         return resolvedSect;
       }),
-      botPlayerIds: room.seats.filter((seat) => !seat.memberId).map((seat) => toPlayerId(seat.id))
+      botPlayerIds: room.seats.filter((seat) => !seat.memberId).map((seat) => toPlayerId(seat.id)),
+      aiControls: this.createAiControls(room)
     };
 
     room.match = new ServerGameSession(setupData);
@@ -511,6 +613,7 @@ export class RoomManager {
 
     this.emitRoomSnapshots(room);
     this.broadcastLobbyList();
+    this.runRoomAutomations(room);
 
     return {
       ok: true
@@ -548,6 +651,7 @@ export class RoomManager {
 
     this.emitRoomSnapshots(room);
     this.broadcastLobbyList();
+    this.runRoomAutomations(room);
 
     return {
       ok: true
@@ -605,6 +709,9 @@ export class RoomManager {
           isBot: true,
           name: `AI ${seat.id + 1}P`
         });
+        room.match?.setAiControl(toPlayerId(member.seatId), {
+          mode: 'rules'
+        });
       }
     }
 
@@ -629,6 +736,8 @@ export class RoomManager {
     seat.memberId = null;
     seat.sect = null;
     seat.isBot = true;
+    seat.aiMode = 'rules';
+    seat.llmSelection = null;
   }
 
   private emitRoomSnapshots(room: RoomState): void {
@@ -656,7 +765,10 @@ export class RoomManager {
         memberId: seat.memberId,
         memberName: member?.name ?? null,
         sect: seat.sect,
-        isBot: seat.isBot
+        isBot: seat.isBot,
+        aiMode: seat.aiMode,
+        llmProviderName: seat.llmSelection?.providerName ?? null,
+        llmModelId: seat.llmSelection?.modelId ?? null
       };
     });
 
@@ -670,8 +782,86 @@ export class RoomManager {
       updatedAt: room.updatedAt,
       members,
       seats,
+      llmOptions: getPublicLlmOptions(),
       match: room.match?.getSnapshot() ?? null
     };
+  }
+
+  private createAiControls(room: RoomState): Record<string, AiPlayerControl> {
+    const controls: Record<string, AiPlayerControl> = {};
+    for (const seat of room.seats) {
+      if (seat.memberId) {
+        continue;
+      }
+
+      controls[toPlayerId(seat.id)] = {
+        mode: seat.aiMode,
+        llm: seat.aiMode === 'llm' ? seat.llmSelection : null
+      };
+    }
+
+    return controls;
+  }
+
+  private runRoomAutomations(room: RoomState): void {
+    if (this.automationRooms.has(room.code)) {
+      return;
+    }
+
+    this.automationRooms.add(room.code);
+    void this.runRoomAutomationsLoop(room).finally(() => {
+      this.automationRooms.delete(room.code);
+    });
+  }
+
+  private async runRoomAutomationsLoop(room: RoomState): Promise<void> {
+    for (let safety = 0; safety < 96; safety += 1) {
+      if (!room.match || room.match.isFinished()) {
+        break;
+      }
+
+      const snapshot = room.match.getSnapshot();
+      const pendingDiscardPlayer = room.match.getPendingDiscardPlayer();
+      const actingPlayerId = pendingDiscardPlayer ?? room.match.getCurrentPlayer();
+      if (!room.match.isBotPlayer(actingPlayerId)) {
+        break;
+      }
+
+      const control = room.match.getAiControl(actingPlayerId);
+      if (control.mode !== 'llm' || !control.llm) {
+        room.match.runRulesAutomation();
+        room.status = room.match.isFinished() ? 'finished' : 'in_game';
+        room.updatedAt = Date.now();
+        this.emitRoomSnapshots(room);
+        this.broadcastLobbyList();
+        continue;
+      }
+
+      try {
+        const action = await decideLlmAction(snapshot, actingPlayerId, control.llm);
+        if (!action) {
+          room.match.appendAutomationLog(`${snapshot.G.players[actingPlayerId].name}（LLM）未返回合法动作，改用规则 AI。`);
+          room.match.runRulesAutomation();
+        } else {
+          room.match.appendAutomationLog(`${snapshot.G.players[actingPlayerId].name}（LLM）决定执行 ${action.type}。`);
+          const beforeActionSnapshot = serializeProgressSnapshot(room.match);
+          const result = room.match.applyAction(actingPlayerId, action);
+          const afterActionSnapshot = serializeProgressSnapshot(room.match);
+          if (!result.ok || beforeActionSnapshot === afterActionSnapshot) {
+            room.match.appendAutomationLog(`${snapshot.G.players[actingPlayerId].name}（LLM）动作无效，改用规则 AI。`);
+            room.match.runRulesAutomation();
+          }
+        }
+      } catch {
+        room.match.appendAutomationLog(`${snapshot.G.players[actingPlayerId].name}（LLM）调用失败，改用规则 AI。`);
+        room.match.runRulesAutomation();
+      }
+
+      room.status = room.match.isFinished() ? 'finished' : 'in_game';
+      room.updatedAt = Date.now();
+      this.emitRoomSnapshots(room);
+      this.broadcastLobbyList();
+    }
   }
 
   private listLobbyRooms(): LobbyRoomSummary[] {

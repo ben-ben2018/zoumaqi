@@ -1,7 +1,8 @@
 import type { Ctx, PlayerID } from 'boardgame.io';
 
 import { DamaqiGame, runBotTurn, syncActivePlayers } from '../game/gameConfig';
-import type { SetupData, GameState } from '../types';
+import { appendLog } from '../game/helpers';
+import type { AiPlayerControl, SetupData, GameState } from '../types';
 import type { GameActionRequest, MatchSnapshot, OperationResult } from '../multiplayer/protocol';
 
 type MutableCtx = Ctx & {
@@ -63,6 +64,14 @@ export class ServerGameSession {
     return this.G.pendingDiscards[0]?.playerId ?? null;
   }
 
+  getAiControl(playerID: PlayerID): AiPlayerControl {
+    return this.G.aiControls?.[playerID] ?? { mode: 'rules' };
+  }
+
+  isBotPlayer(playerID: PlayerID): boolean {
+    return Boolean(this.G.players[playerID]?.isBot);
+  }
+
   setPlayerMetadata(playerID: PlayerID, data: { isBot?: boolean; name?: string }): void {
     const player = this.G.players[playerID];
     if (!player) {
@@ -78,7 +87,16 @@ export class ServerGameSession {
     }
   }
 
-  resumeAutomations(): void {
+  setAiControl(playerID: PlayerID, control: AiPlayerControl): void {
+    this.G.aiControls = this.G.aiControls ?? {};
+    this.G.aiControls[playerID] = control;
+  }
+
+  appendAutomationLog(message: string): void {
+    appendLog(this.G, message);
+  }
+
+  runRulesAutomation(): void {
     if (this.isFinished()) {
       return;
     }
@@ -87,6 +105,21 @@ export class ServerGameSession {
     syncActivePlayers(this.G, this.ctx, events as never);
 
     if (this.G.players[this.ctx.currentPlayer].isBot) {
+      runBotTurn(this.G, this.ctx, events as never);
+    }
+
+    this.syncGameOver();
+  }
+
+  resumeAutomations(): void {
+    if (this.isFinished()) {
+      return;
+    }
+
+    const events = this.createEvents();
+    syncActivePlayers(this.G, this.ctx, events as never);
+
+    if (this.G.players[this.ctx.currentPlayer].isBot && this.getAiControl(this.ctx.currentPlayer).mode === 'rules') {
       runBotTurn(this.G, this.ctx, events as never);
     }
 
@@ -135,6 +168,9 @@ export class ServerGameSession {
       case 'finishCardStage':
       case 'finishSkillStage':
         move(context);
+        break;
+      case 'movePlayer':
+        move(context, action.steps as never);
         break;
       case 'buyCard':
         move(context, action.cardId as never);

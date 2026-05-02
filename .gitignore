@@ -2,6 +2,7 @@ node_modules/
 dist/
 dist-server/
 *.tsbuildinfo
+llm.json
 .DS_Store
 .workflow/
 .codex-tasks/

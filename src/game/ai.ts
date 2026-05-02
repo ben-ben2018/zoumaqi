@@ -721,21 +721,21 @@ export function chooseAiCardPlay(G: GameState, playerId: PlayerID): AiCardPlay |
     };
   }
 
-  if (fullestHandEnemyId && hasCardInHand(player, 'shexing_nayue')) {
+  if (fullestHandEnemyId && G.players[fullestHandEnemyId].handCards.length > 0 && hasCardInHand(player, 'shexing_nayue')) {
     return {
       cardId: 'shexing_nayue',
       targetPlayerId: fullestHandEnemyId
     };
   }
 
-  if (fullestHandEnemyId && hasCardInHand(player, 'daodao_budaodao')) {
+  if (fullestHandEnemyId && G.players[fullestHandEnemyId].handCards.length > 0 && hasCardInHand(player, 'daodao_budaodao')) {
     return {
       cardId: 'daodao_budaodao',
       targetPlayerId: fullestHandEnemyId
     };
   }
 
-  if (richestEnemyId && hasCardInHand(player, 'liangshang_junzi')) {
+  if (richestEnemyId && G.players[richestEnemyId].gold > 0 && hasCardInHand(player, 'liangshang_junzi')) {
     return {
       cardId: 'liangshang_junzi',
       targetPlayerId: richestEnemyId

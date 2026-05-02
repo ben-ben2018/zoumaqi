@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ROOM_IDLE_TIMEOUT_MS } from '../multiplayer/protocol';
+import { ROOM_IDLE_TIMEOUT_MS, type RoomSnapshot } from '../multiplayer/protocol';
 import { ServerGameSession } from '../server/gameSession';
 import { RoomManager } from '../server/roomManager';
 import { Sect, TurnStage } from '../types';
@@ -214,6 +214,93 @@ describe('RoomManager', () => {
     expect(room.seats[1].sect).toBe(Sect.KUANGLAN);
     expect(room.seats[2].sect).toBe(Sect.KUANGLAN);
     expect(room.seats[3].sect).toBe(Sect.KUANGLAN);
+  });
+
+  it('lets only the host configure an empty AI seat for LLM mode', () => {
+    const { io, managerInternal } = createRoomManagerHarness();
+    const hostSocket = createFakeSocket('socket-host');
+    const guestSocket = createFakeSocket('socket-guest');
+    io.sockets.sockets.set(hostSocket.id, hostSocket);
+    io.sockets.sockets.set(guestSocket.id, guestSocket);
+
+    const createResult = managerInternal.handleCreateRoom(hostSocket, {
+      name: 'Host'
+    });
+    const roomCode = createResult.roomCode as string;
+    managerInternal.handleJoinRoom(guestSocket, {
+      roomCode,
+      name: 'Guest'
+    });
+
+    expect(
+      managerInternal.handleSetSeatAi(guestSocket, {
+        seatId: 1,
+        aiMode: 'llm',
+        providerName: 'OpenAI',
+        modelId: 'gpt-4o'
+      })
+    ).toMatchObject({
+      ok: false
+    });
+
+    expect(
+      managerInternal.handleSetSeatAi(hostSocket, {
+        seatId: 1,
+        aiMode: 'llm',
+        providerName: 'OpenAI',
+        modelId: 'gpt-4o'
+      })
+    ).toEqual({
+      ok: true
+    });
+
+    const room = managerInternal.rooms.get(roomCode);
+    const snapshot = managerInternal.serializeRoom(room, hostSocket.data.memberId) as RoomSnapshot;
+    expect(snapshot.seats[1]).toMatchObject({
+      aiMode: 'llm',
+      llmProviderName: 'OpenAI',
+      llmModelId: 'gpt-4o'
+    });
+    expect(JSON.stringify(snapshot.llmOptions)).not.toContain('sk-');
+  });
+
+  it('keeps an opening LLM bot waiting for async automation instead of running rules AI in setup', () => {
+    const { io, managerInternal } = createRoomManagerHarness();
+    const hostSocket = createFakeSocket('socket-host');
+    io.sockets.sockets.set(hostSocket.id, hostSocket);
+
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const createResult = managerInternal.handleCreateRoom(hostSocket, {
+      name: 'Host'
+    });
+    const roomCode = createResult.roomCode as string;
+    const room = managerInternal.rooms.get(roomCode);
+
+    managerInternal.handleClaimSeat(hostSocket, { seatId: 1 });
+    managerInternal.handleSetSeatAi(hostSocket, {
+      seatId: 0,
+      aiMode: 'llm',
+      providerName: 'OpenAI',
+      modelId: 'gpt-4o'
+    });
+    managerInternal.automationRooms.add(roomCode);
+
+    managerInternal.handleStartGame(hostSocket);
+
+    const snapshot = room.match.getSnapshot();
+    expect(snapshot.ctx).toEqual({
+      currentPlayer: '0',
+      turn: 1
+    });
+    expect(snapshot.G.players['0'].position).toBe(0);
+    expect(snapshot.G.aiControls?.['0']).toMatchObject({
+      mode: 'llm',
+      llm: {
+        providerName: 'OpenAI',
+        modelId: 'gpt-4o'
+      }
+    });
   });
 });
 

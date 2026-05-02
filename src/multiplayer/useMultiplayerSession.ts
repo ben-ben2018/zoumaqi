@@ -9,6 +9,7 @@ import {
   type LobbyRoomSummary,
   type OperationResult,
   type RoomSnapshot,
+  type SetSeatAiPayload,
   type SetSectPayload,
   type ServerToClientEvents,
   type ClientToServerEvents,
@@ -173,6 +174,18 @@ export function useMultiplayerSession() {
     return emitWithAck((callback) => socket.emit('room:setSect', payload, callback));
   };
 
+  const setSeatAi = async (payload: SetSeatAiPayload) => {
+    const socket = socketRef.current;
+    if (!socket) {
+      return {
+        ok: false,
+        error: 'Socket 尚未连接。'
+      } satisfies OperationResult;
+    }
+
+    return emitWithAck((callback) => socket.emit('room:setSeatAi', payload, callback));
+  };
+
   const updateRoomSettings = async (payload: UpdateRoomSettingsPayload) => {
     const socket = socketRef.current;
     if (!socket) {
@@ -240,6 +253,7 @@ export function useMultiplayerSession() {
     claimSeat,
     leaveSeat,
     setSect,
+    setSeatAi,
     updateRoomSettings,
     kickMember,
     startGame,
